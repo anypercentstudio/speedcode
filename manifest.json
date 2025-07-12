@@ -1,0 +1,16 @@
+{
+	"manifest_version": 3,
+	"name": "SpeedCode",
+	"version": "1.0",
+	"description": "Work in progress...",
+	"permissions": ["activeTab"],
+	"action": {
+		"default_popup": "popup.html",
+		"default_title": "SpeedCode"
+	},
+	"icons": {
+		"16": "onLC.png",
+		"48": "onLC.png",
+		"128": "onLC.png"
+	}
+}

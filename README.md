@@ -1,7 +1,13 @@
-# speedcode
+# SpeedCode
 
-us rn:  
-![bruce-almighty-comedy](https://github.com/user-attachments/assets/956c9f80-6952-4137-86e3-2f8eef9334e4)
+work in progress...
 
+## installation
 
-LMAOOOOOOOOOOOOO
+1. clone repo
+2. open chrome >> manage extensions
+3. toggle on **"developer mode"**
+4. click **"load unpacked"**
+5. select cloned repo
+
+right now the extension shows different images based on whether ur currently on LeetCode or any other site.
