@@ -2,15 +2,22 @@
 	"manifest_version": 3,
 	"name": "SpeedCode",
 	"version": "1.0",
-	"description": "Work in progress...",
+	"description": "LeetCode problem tracker",
 	"permissions": ["activeTab"],
+	"content_scripts": [
+		{
+			"matches": ["*://leetcode.com/*"],
+			"js": ["content.js"],
+			"run_at": "document_end"
+		}
+	],
 	"action": {
 		"default_popup": "popup.html",
 		"default_title": "SpeedCode"
 	},
 	"icons": {
-		"16": "onLC.png",
-		"48": "onLC.png",
-		"128": "onLC.png"
+		"16": "myicon.png",
+		"48": "myicon.png",
+		"128": "myicon.png"
 	}
 }

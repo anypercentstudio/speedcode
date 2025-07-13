@@ -1,56 +1,48 @@
 document.addEventListener("DOMContentLoaded", async () => {
-	const statusImage = document.getElementById("statusImage");
-	const statusText = document.getElementById("statusText");
-	const statusCard = document.querySelector(".status-card");
-
-	statusCard.classList.add("loading"); //add loading state
+	const problemInfo = document.getElementById("problemInfo");
 
 	try {
 		const [tab] = await chrome.tabs.query({
 			active: true,
 			currentWindow: true,
-		}); // curr active tab
+		});
 
 		if (!tab || !tab.url) {
-			throw new Error("Unable to get current tab");
+			return;
 		}
 
-		const isOnLeetCode = tab.url.toLowerCase().includes("leetcode.com"); //url checking
-
-		statusCard.classList.remove("loading"); //remove state
+		const isOnLeetCode = tab.url.toLowerCase().includes("leetcode.com");
 
 		if (isOnLeetCode) {
-			statusImage.src = "onLC.png";
-			statusImage.alt = "On LeetCode";
-			statusText.textContent = "ok lock in";
-			statusCard.classList.add("on-leetcode");
-			statusCard.classList.remove("off-leetcode");
-		} else {
-			statusImage.src = "offLC.png";
-			statusImage.alt = "Not on LeetCode";
-			statusText.textContent = "get on da grind bro";
-			statusCard.classList.add("off-leetcode");
-			statusCard.classList.remove("on-leetcode");
+			try {
+				const response = await chrome.tabs.sendMessage(tab.id, {
+					action: "getProblemInfo",
+				});
+
+				if (response && response.onProblem) {
+					let infoHTML = "";
+
+					if (response.problemNumber) {
+						infoHTML += `<div class="problem-number">#${response.problemNumber}</div>`;
+					}
+
+					if (response.problemTitle) {
+						infoHTML += `<div class="problem-title">${response.problemTitle}</div>`;
+					}
+
+					if (response.difficulty) {
+						infoHTML += `<div class="difficulty difficulty-${response.difficulty.toLowerCase()}">${
+							response.difficulty
+						}</div>`;
+					}
+
+					problemInfo.innerHTML = infoHTML;
+				}
+			} catch (error) {
+				console.log("Content script error:", error);
+			}
 		}
-
-		statusImage.onload = () => {
-			statusImage.style.opacity = "0";
-			statusImage.style.transform = "scale(0.8)";
-
-			setTimeout(() => {
-				statusImage.style.transition =
-					"opacity 0.4s ease, transform 0.4s ease";
-				statusImage.style.opacity = "1";
-				statusImage.style.transform = "scale(1)";
-			}, 50);
-		}; //image loading animations
 	} catch (error) {
-		console.error("Error checking LeetCode status:", error);
-
-		statusCard.classList.remove("loading");
-		statusImage.src = "offLC.png";
-		statusImage.alt = "Error";
-		statusText.textContent = "Unable to check status";
-		statusCard.classList.add("off-leetcode");
+		console.error("Error:", error);
 	}
 });
