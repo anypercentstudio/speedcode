@@ -1,16 +1,13 @@
 :root {
-	--color-primary: #8b5cf6;
-	--color-primary-dark: #7c3aed;
-	--color-success: #10b981;
-	--color-neutral: #6b7280;
-	--color-gray-50: #f9fafb;
-	--color-gray-100: #f3f4f6;
-	--color-gray-200: #e5e7eb;
+	--color-easy: #00b395;
+	--color-medium: #ffb800;
+	--color-hard: #ff375f;
 	--color-white: #ffffff;
-	--color-black: #000000;
+	--color-black: #1a1a1a;
+	--color-gray: #6b7280;
 	--radius-lg: 12px;
+	--radius-sm: 6px;
 	--shadow-soft: 0 8px 32px -8px rgba(0, 0, 0, 0.1);
-	--border-light: #f3f4f6;
 }
 
 body {
@@ -18,77 +15,60 @@ body {
 	padding: 0;
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
 		"Roboto", sans-serif;
+	background: var(--color-black);
 }
 
-.status-card {
-	width: 320px;
-	min-height: 240px;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 16px;
+.problem-info {
+	width: 300px;
+	padding: 24px;
 	background: var(--color-black);
 	border-radius: var(--radius-lg);
-	padding: 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
 	box-shadow: var(--shadow-soft);
-	border: 1px solid var(--border-light);
-	box-sizing: border-box;
 }
 
-.status-image {
-	width: 96px;
-	height: 96px;
-	object-fit: contain;
-	border-radius: 8px;
-	transition: transform 0.3s ease, filter 0.3s ease;
+.problem-number {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--color-gray);
+	margin: 0;
 }
 
-.status-image:hover {
-	transform: scale(1.05);
-	filter: brightness(1.1);
-}
-
-.status-text {
+.problem-title {
 	font-size: 18px;
 	font-weight: 600;
-	text-align: center;
+	color: var(--color-white);
+	line-height: 1.3;
 	margin: 0;
-	color: var(--color-neutral);
-	transition: color 0.3s ease;
 }
 
-.on-leetcode .status-text {
-	color: var(--color-success);
+.difficulty {
+	display: inline-block;
+	padding: 6px 12px;
+	border-radius: var(--radius-sm);
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	width: fit-content;
 }
 
-.off-leetcode .status-text {
-	color: var(--color-primary);
+.difficulty-easy {
+	background-color: rgba(0, 179, 149, 0.15);
+	color: var(--color-easy);
+	border: 1px solid var(--color-easy);
 }
 
-.loading {
-	animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.difficulty-medium {
+	background-color: rgba(255, 184, 0, 0.15);
+	color: var(--color-medium);
+	border: 1px solid var(--color-medium);
 }
 
-.loading .status-image {
-	background-color: var(--color-gray-200);
-	border-radius: 8px;
-}
-
-.loading .status-text {
-	background-color: var(--color-gray-200);
-	color: transparent;
-	border-radius: 4px;
-	width: 120px;
-	height: 24px;
-}
-
-@keyframes pulse {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.5;
-	}
+.difficulty-hard {
+	background-color: rgba(255, 55, 95, 0.15);
+	color: var(--color-hard);
+	border: 1px solid var(--color-hard);
 }
