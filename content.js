@@ -130,7 +130,7 @@ function checkForChanges() {
 	}
 }
 
-const observer = new MutationObserver(checkForChanges); //observe url changes
+const observer = new MutationObserver(checkForChanges);
 observer.observe(document.body, { childList: true, subtree: true });
 
 setTimeout(() => {

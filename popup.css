@@ -30,10 +30,15 @@ body {
 }
 
 .info-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 6px;
+}
+
+.button-group {
+	display: flex;
+	gap: 8px;
 }
 
 .problem-number {
@@ -80,19 +85,25 @@ body {
 	border: 1px solid var(--color-hard);
 }
 
-.bucket-btn{
+.bucket-btn {
 	background-color: var(--color-white);
 	font-weight: 600;
 	border-radius: var(--radius-sm);
-	transition-duration: 0.4s;
+	transition: all 0.3s ease;
+	border: none;
+	padding: 6px 10px;
+	cursor: pointer;
+	font-size: 12px;
+	white-space: nowrap;
 }
 
 .bucket-btn:hover {
-  	background-color: var(--color-gray);
-  	color: var(--color-white);
+	background-color: var(--color-gray);
+	color: var(--color-white);
+	transform: translateY(-1px);
 }
 
-.bucket{
+.bucket {
 	color: var(--color-white);
 	font-weight: 600;
 }
@@ -113,25 +124,48 @@ body {
 	margin-top: 10px;
 	max-height: 200px;
 	overflow-y: auto;
+	width: 300px;
+	padding: 24px;
+	background: var(--color-black);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-soft);
 }
 
 .bucket-item {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 5px 0;
-	border-bottom: 0.5px solid #eee;
+	padding: 8px 0;
+	border-bottom: 1px solid #333;
+}
+
+.bucket-item:last-child {
+	border-bottom: none;
 }
 
 .bucket-item a {
 	text-decoration: none;
-	color: #333;
+	color: var(--color-white);
 	flex: 1;
+}
+
+.bucket-item a:hover {
+	opacity: 0.8;
 }
 
 .remove-button {
 	background: none;
 	border: none;
-	color: red;
+	color: #ff375f;
 	cursor: pointer;
+	font-weight: bold;
+	padding: 4px 8px;
+	border-radius: 4px;
+	transition: all 0.2s;
+	font-size: 12px;
+}
+
+.remove-button:hover {
+	background-color: rgba(255, 55, 95, 0.1);
+	transform: scale(1.1);
 }

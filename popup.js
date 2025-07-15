@@ -29,9 +29,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 						infoHTML += `<div class="problem-number">#${response.problemNumber}</div>`;
 					}
 
-					infoHTML += `<button id="addToBucketBtn" class="bucket-btn">Add to Bucket</button>`;
-
-					infoHTML += `<button id="viewBucketBtn" class="bucket-btn">View Bucket</button>`;
+					infoHTML += `<div class="button-group">`;
+					infoHTML += `<button id="addToBucketBtn" class="bucket-btn">🪣 Add</button>`;
+					infoHTML += `<button id="viewBucketBtn" class="bucket-btn">👁️ View</button>`;
+					infoHTML += `</div>`;
 
 					infoHTML += `</div>`;
 
@@ -46,8 +47,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 					}
 
 					problemInfo.innerHTML = infoHTML;
-					const addBucketBtn = document.getElementById("addToBucketBtn");
-					const viewBucketBtn = document.getElementById("viewBucketBtn");
+
+					const addBucketBtn =
+						document.getElementById("addToBucketBtn");
+					const viewBucketBtn =
+						document.getElementById("viewBucketBtn");
 
 					addBucketBtn.addEventListener("click", async () => {
 						if (!response) return;
@@ -56,33 +60,46 @@ document.addEventListener("DOMContentLoaded", async () => {
 							const bucket = result.bucket || [];
 
 							const alreadyInBucket = bucket.some(
-								(p) => p.url.toLowerCase() === response.url.toLowerCase()
+								(p) =>
+									p.url.toLowerCase() ===
+									response.url.toLowerCase()
 							);
 
 							if (!alreadyInBucket) {
 								bucket.push(response);
-							}
+								chrome.storage.local.set({ bucket }, () => {
+									// Visual feedback
+									addBucketBtn.innerHTML = "✅ Added!";
+									addBucketBtn.style.background = "#10b981";
+									addBucketBtn.style.color = "white";
 
-							saveAndRenderBucket(bucket, response);
+									setTimeout(() => {
+										addBucketBtn.innerHTML = "🪣 Add";
+										addBucketBtn.style.background = "";
+										addBucketBtn.style.color = "";
+									}, 1500);
+								});
+							} else {
+								// Already in bucket feedback
+								addBucketBtn.innerHTML = "👍 Already added";
+								addBucketBtn.style.background = "#f59e0b";
+								addBucketBtn.style.color = "white";
+
+								setTimeout(() => {
+									addBucketBtn.innerHTML = "🪣 Add";
+									addBucketBtn.style.background = "";
+									addBucketBtn.style.color = "";
+								}, 1500);
+							}
 						});
 					});
 
 					viewBucketBtn.addEventListener("click", async () => {
-						if (!response) return;
-
-						chrome.storage.local.get(["bucket"], (result) => {
-							const bucket = result.bucket || [];
-							saveAndRenderBucket(bucket, response);
-						});
-					})
-
-					function saveAndRenderBucket(bucket, response) {
-						chrome.storage.local.set({ bucket }, () => {
-							console.log("Saved to bucket:", response);
-							document.getElementById("bucketListContainer").style.display = "block";
-							renderBucketList();
-						});
-					}
+						document.getElementById(
+							"bucketListContainer"
+						).style.display = "block";
+						renderBucketList();
+					});
 				}
 			} catch (error) {
 				console.log("Content script error:", error);
@@ -99,6 +116,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 				bucketList.innerHTML = "";
 				console.log("bucket: ", bucket);
 
+				if (bucket.length === 0) {
+					bucketList.innerHTML =
+						'<div style="color: #6b7280; text-align: center; padding: 20px;">No problems in bucket yet</div>';
+					return;
+				}
+
 				bucket.forEach((problem, index) => {
 					const item = document.createElement("div");
 					item.className = "bucket-item";
@@ -108,7 +131,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 							#${problem.problemNumber || "?"}: ${problem.problemTitle}
 						</span>
 						</a>
-						<button data-index="${index}" class="remove-button">X</button>
+						<button data-index="${index}" class="remove-button">❌</button>
 					`;
 					bucketList.appendChild(item);
 				});
@@ -125,5 +148,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 			console.error("chrome.storage.local is not available.");
 		}
 	}
-
 });
