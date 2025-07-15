@@ -29,6 +29,13 @@ body {
 	box-shadow: var(--shadow-soft);
 }
 
+.info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
 .problem-number {
 	font-size: 14px;
 	font-weight: 600;
@@ -71,4 +78,60 @@ body {
 	background-color: rgba(255, 55, 95, 0.15);
 	color: var(--color-hard);
 	border: 1px solid var(--color-hard);
+}
+
+.bucket-btn{
+	background-color: var(--color-white);
+	font-weight: 600;
+	border-radius: var(--radius-sm);
+	transition-duration: 0.4s;
+}
+
+.bucket-btn:hover {
+  	background-color: var(--color-gray);
+  	color: var(--color-white);
+}
+
+.bucket{
+	color: var(--color-white);
+	font-weight: 600;
+}
+
+.bucket-difficulty-easy {
+	color: var(--color-easy);
+}
+
+.bucket-difficulty-medium {
+	color: var(--color-medium);
+}
+
+.bucket-difficulty-hard {
+	color: var(--color-hard);
+}
+
+.bucket-list {
+	margin-top: 10px;
+	max-height: 200px;
+	overflow-y: auto;
+}
+
+.bucket-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 5px 0;
+	border-bottom: 0.5px solid #eee;
+}
+
+.bucket-item a {
+	text-decoration: none;
+	color: #333;
+	flex: 1;
+}
+
+.remove-button {
+	background: none;
+	border: none;
+	color: red;
+	cursor: pointer;
 }

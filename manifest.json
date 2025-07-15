@@ -3,7 +3,7 @@
 	"name": "SpeedCode",
 	"version": "1.0",
 	"description": "LeetCode problem tracker",
-	"permissions": ["activeTab"],
+	"permissions": ["activeTab", "storage"],
 	"content_scripts": [
 		{
 			"matches": ["*://leetcode.com/*"],
