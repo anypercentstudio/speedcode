@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", async () => {
 	const problemInfo = document.getElementById("problemInfo");
 	const bucketList = document.getElementById("bucketList");
+	const bucketListContainer = document.getElementById("bucketListContainer");
+	let isBucketVisible = false;
 
 	try {
 		const [tab] = await chrome.tabs.query({
@@ -68,7 +70,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 							if (!alreadyInBucket) {
 								bucket.push(response);
 								chrome.storage.local.set({ bucket }, () => {
-									// Visual feedback
 									addBucketBtn.innerHTML = "✅ Added!";
 									addBucketBtn.style.background = "#10b981";
 									addBucketBtn.style.color = "white";
@@ -80,7 +81,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 									}, 1500);
 								});
 							} else {
-								// Already in bucket feedback
 								addBucketBtn.innerHTML = "👍 Already added";
 								addBucketBtn.style.background = "#f59e0b";
 								addBucketBtn.style.color = "white";
@@ -95,10 +95,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 					});
 
 					viewBucketBtn.addEventListener("click", async () => {
-						document.getElementById(
-							"bucketListContainer"
-						).style.display = "block";
-						renderBucketList();
+						isBucketVisible = !isBucketVisible;
+
+						if (isBucketVisible) {
+							bucketListContainer.style.display = "block";
+							viewBucketBtn.innerHTML = "🙈 Hide";
+							viewBucketBtn.style.background = "#6b7280";
+							viewBucketBtn.style.color = "white";
+							renderBucketList();
+						} else {
+							bucketListContainer.style.display = "none";
+							viewBucketBtn.innerHTML = "👁️ View";
+							viewBucketBtn.style.background = "";
+							viewBucketBtn.style.color = "";
+						}
 					});
 				}
 			} catch (error) {

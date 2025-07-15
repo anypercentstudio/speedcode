@@ -11,18 +11,33 @@ function extractProblemInfo() {
 	let difficulty = null;
 
 	const titleSelectors = [
-		'[data-cy="question-title"]',
-		"h1",
+		'[data-cy="question-title"]', //more specific problem title selectors
 		".text-title-large",
-		'[class*="title"]',
 		".css-v3d350",
-	]; //selectors for the title element
+		'[class*="question-title"]',
+		'div[data-cy="question-detail-main-tabs"] h1', //only use h1 if it's in the problem area, not discussion
+		'div[class*="question"] h1:first-of-type',
+	];
 
 	let titleElement = null;
 	for (const selector of titleSelectors) {
 		titleElement = document.querySelector(selector);
 		if (titleElement && titleElement.textContent.trim()) {
-			break;
+			const discussionArea =
+				titleElement.closest('[class*="discuss"]') ||
+				titleElement.closest('[class*="comment"]') ||
+				titleElement.closest('[data-cy="discussion"]');
+
+			if (!discussionArea) {
+				console.log("Found valid title element:", titleElement);
+				break;
+			} else {
+				console.log(
+					"Skipping discussion title:",
+					titleElement.textContent.trim()
+				);
+				titleElement = null;
+			} //avoid titles that are in discussion/comment areas
 		}
 	}
 
@@ -54,7 +69,7 @@ function extractProblemInfo() {
 		if (urlMatch) {
 			problemNumber = urlMatch[1];
 		}
-	}
+	} //extract from URL if title not found
 
 	const difficultySelectors = [
 		'[diff="Easy"]',
