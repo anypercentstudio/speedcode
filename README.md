@@ -10,4 +10,4 @@ work in progress...
 4. click **"load unpacked"**
 5. select cloned repo
 
-right now the extension shows different images based on whether ur currently on LeetCode or any other site.
+right now the extension shows the problem information and allows users to save problems they want to come back to
