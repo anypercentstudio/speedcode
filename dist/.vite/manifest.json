@@ -1,0 +1,11 @@
+{
+  "src/popup.html": {
+    "file": "popup.js",
+    "name": "popup",
+    "src": "src/popup.html",
+    "isEntry": true,
+    "css": [
+      "popup.css"
+    ]
+  }
+}

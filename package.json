@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "build": "vite build && mv dist/src/popup.html dist/popup.html && rm -r dist/src",
+    "dev": "vite"
+  }
+}
