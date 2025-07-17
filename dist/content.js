@@ -1,3 +1,5 @@
+console.log("Content script loaded");
+
 function extractProblemInfo() {
 	const urlPattern = /\/problems\/([^\/]+)/; //pattern match to see if we're on problem page
 	const match = window.location.pathname.match(urlPattern);

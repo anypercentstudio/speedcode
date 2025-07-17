@@ -4,6 +4,7 @@
 	"version": "1.0",
 	"description": "LeetCode problem tracker",
 	"permissions": ["activeTab", "storage"],
+	"host_permissions": ["https://*.firebaseio.com/", "https://*.googleapis.com/"],
 	"content_scripts": [
 		{
 			"matches": ["*://leetcode.com/*"],
