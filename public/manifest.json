@@ -1,24 +1,39 @@
 {
 	"manifest_version": 3,
 	"name": "SpeedCode",
-	"version": "1.0",
-	"description": "LeetCode problem tracker",
-	"permissions": ["activeTab", "storage"],
-	"host_permissions": ["https://*.firebaseio.com/", "https://*.googleapis.com/"],
+	"version": "1.0.0",
+	"description": "who knows what this idea could grow to be?",
+	"permissions": ["activeTab", "storage", "offscreen"],
+	"host_permissions": [
+		"https://*.firebaseio.com/*",
+		"https://*.googleapis.com/*",
+		"https://*.firestore.googleapis.com/*"
+	],
 	"content_scripts": [
 		{
-			"matches": ["*://leetcode.com/*"],
+			"matches": ["*://leetcode.com/*", "*://*.leetcode.com/*"],
 			"js": ["content.js"],
-			"run_at": "document_end"
+			"run_at": "document_end",
+			"all_frames": false
 		}
 	],
 	"action": {
 		"default_popup": "popup.html",
-		"default_title": "SpeedCode"
+		"default_title": "SpeedCode - LeetCode Tracker"
 	},
 	"icons": {
 		"16": "myicon.png",
 		"48": "myicon.png",
 		"128": "myicon.png"
-	}
+	},
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
+	"web_accessible_resources": [
+		{
+			"resources": ["*.js", "*.css"],
+			"matches": ["*://leetcode.com/*", "*://*.leetcode.com/*"]
+		}
+	]
 }

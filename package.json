@@ -1,6 +1,36 @@
 {
-  "scripts": {
-    "build": "vite build && mv dist/src/popup.html dist/popup.html && rm -r dist/src",
-    "dev": "vite"
-  }
+	"name": "speedcode-extension",
+	"version": "1.1.0",
+	"description": "LeetCode problem tracker with social features",
+	"type": "module",
+	"scripts": {
+		"build": "npm run clean && vite build && npm run post-build",
+		"build:watch": "npm run clean && vite build --watch",
+		"clean": "rm -rf dist",
+		"post-build": "npm run copy-assets && npm run copy-manifest && npm run copy-scripts && npm run fix-html",
+		"copy-assets": "cp -r public/* dist/ 2>/dev/null || true",
+		"copy-manifest": "cp public/manifest.json dist/manifest.json",
+		"copy-scripts": "cp public/content.js dist/content.js && cp public/background.js dist/background.js",
+		"fix-html": "mv dist/src/popup.html dist/popup.html && rm -rf dist/src",
+		"dev": "vite",
+		"preview": "npm run build && npm run serve",
+		"serve": "cd dist && python3 -m http.server 8080",
+		"lint": "echo 'Linting not configured yet'",
+		"test": "echo 'Tests not configured yet'"
+	},
+	"dependencies": {
+		"firebase": "^10.7.1"
+	},
+	"devDependencies": {
+		"vite": "^5.0.0"
+	},
+	"keywords": [
+		"chrome-extension",
+		"leetcode",
+		"social",
+		"coding",
+		"tracker"
+	],
+	"author": "dev & co-dev",
+	"license": "MIT"
 }
