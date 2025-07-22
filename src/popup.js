@@ -1,35 +1,159 @@
-import { app, db, auth, signInAnonymously, onAuthStateChanged } from './firebaseConfig.js';
-import { getDoc, setDoc, doc } from 'firebase/firestore';
+import {
+	app,
+	db,
+	auth,
+	signInAnonymously,
+	onAuthStateChanged,
+} from "./firebaseConfig.js";
+import { getDoc, setDoc, doc } from "firebase/firestore";
 
-console.log('Firebase app initialized:', app.name);
+console.log("Firebase app initialized:", app.name);
 
-let userId = null;		//will be set later
+let userId = null; //will be set later
+let isOnline = navigator.onLine;
+
+const FEEDBACK_DURATION = 3000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
+
+function showError(element, message, duration = FEEDBACK_DURATION) {
+	element.innerHTML = `❌ ${message}`;
+	element.style.background = "#ef4444";
+	element.style.color = "white";
+	element.disabled = true;
+
+	setTimeout(() => {
+		resetButton(element);
+	}, duration);
+}
+
+function showSuccess(element, message, duration = FEEDBACK_DURATION) {
+	element.innerHTML = `✅ ${message}`;
+	element.style.background = "#10b981";
+	element.style.color = "white";
+	element.disabled = true;
+
+	setTimeout(() => {
+		resetButton(element);
+	}, duration);
+}
+
+function showLoading(element, message = "Loading...") {
+	element.innerHTML = `⏳ ${message}`;
+	element.style.background = "#6b7280";
+	element.style.color = "white";
+	element.disabled = true;
+}
+
+function resetButton(element) {
+	element.disabled = false;
+	if (element.id === "addToBucketBtn") {
+		element.innerHTML = "🪣 Add";
+	} else if (element.id === "viewBucketBtn") {
+		element.innerHTML = "👁️ View";
+	}
+	element.style.background = "";
+	element.style.color = "";
+}
+
+function showConnectionStatus() {
+	const statusDiv = document.createElement("div");
+	statusDiv.id = "connectionStatus";
+	statusDiv.style.cssText = `
+		position: fixed;
+		top: 10px;
+		left: 10px;
+		right: 10px;
+		padding: 8px;
+		border-radius: 6px;
+		font-size: 12px;
+		text-align: center;
+		z-index: 1000;
+		display: none;
+	`;
+
+	if (!isOnline) {
+		statusDiv.innerHTML = "📶 Offline - Changes will sync when connected";
+		statusDiv.style.background = "#f59e0b";
+		statusDiv.style.color = "white";
+		statusDiv.style.display = "block";
+	}
+
+	document.body.insertBefore(statusDiv, document.body.firstChild);
+	return statusDiv;
+}
+
+async function retryOperation(operation, maxRetries = MAX_RETRIES) {
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			return await operation();
+		} catch (error) {
+			console.log(`Attempt ${attempt} failed:`, error);
+
+			if (attempt === maxRetries) {
+				throw error;
+			}
+
+			// Wait before retrying
+			await new Promise((resolve) =>
+				setTimeout(resolve, RETRY_DELAY * attempt)
+			);
+		}
+	}
+}
+
+window.addEventListener("online", () => {
+	isOnline = true;
+	const statusDiv = document.getElementById("connectionStatus");
+	if (statusDiv) {
+		statusDiv.style.display = "none";
+	}
+});
+
+window.addEventListener("offline", () => {
+	isOnline = false;
+	showConnectionStatus();
+});
 
 document.addEventListener("DOMContentLoaded", async () => {
+	const statusDiv = showConnectionStatus();
 
-	//firebase anon sign in
-	signInAnonymously(auth)
-	.then(() => {
+	try {
+		await signInAnonymously(auth);
 		console.log("Signed in anonymously");
-	})
-	.catch((error) => {
+	} catch (error) {
 		console.error("Anonymous sign-in error:", error);
-	});
+	}
 
-	//ensures userId is set before any bucket functions is called
 	onAuthStateChanged(auth, (user) => {
 		if (user) {
 			userId = user.uid;
 			console.log("Current user ID:", userId);
 			initPopupWithUser(userId);
+		} else {
+			console.error("Authentication failed");
+			showAuthError();
 		}
 	});
 
+	function showAuthError() {
+		const problemInfo = document.getElementById("problemInfo");
+		problemInfo.innerHTML = `
+			<div style="color: #ef4444; text-align: center; padding: 20px;">
+				<div>⚠️ Authentication Error</div>
+				<div style="font-size: 12px; margin-top: 8px;">
+					Please refresh the extension or check your connection
+				</div>
+			</div>
+		`;
+	}
+
 	async function initPopupWithUser(userId) {
-	//bucket functions
 		const problemInfo = document.getElementById("problemInfo");
 		const bucketList = document.getElementById("bucketList");
-		const bucketListContainer = document.getElementById("bucketListContainer");
+		const bucketListContainer = document.getElementById(
+			"bucketListContainer"
+		);
 		let isBucketVisible = false;
 
 		try {
@@ -39,144 +163,340 @@ document.addEventListener("DOMContentLoaded", async () => {
 			});
 
 			if (!tab || !tab.url) {
+				problemInfo.innerHTML = `
+					<div style="color: #6b7280; text-align: center; padding: 20px;">
+						<div>🔍 No Active Tab</div>
+						<div style="font-size: 12px; margin-top: 8px;">
+							Please navigate to a LeetCode problem
+						</div>
+					</div>
+				`;
 				return;
 			}
 
 			const isOnLeetCode = tab.url.toLowerCase().includes("leetcode.com");
 
-			if (isOnLeetCode) {
-				try {
-					const response = await chrome.tabs.sendMessage(tab.id, {
-						action: "getProblemInfo",
-					});
+			if (!isOnLeetCode) {
+				problemInfo.innerHTML = `
+					<div style="color: #6b7280; text-align: center; padding: 20px;">
+						<div>🎯 Not on LeetCode</div>
+						<div style="font-size: 12px; margin-top: 8px;">
+							Visit a LeetCode problem to track it
+						</div>
+						<button id="viewBucketBtn" class="bucket-btn" style="margin-top: 12px;">👁️ View Bucket</button>
+					</div>
+				`;
 
-					if (response && response.onProblem) {
-						let infoHTML = "";
+				// allow bucket viewing when not on LeetCode
+				const viewBucketBtn = document.getElementById("viewBucketBtn");
+				if (viewBucketBtn) {
+					setupBucketViewButton(viewBucketBtn, bucketListContainer);
+				}
+				return;
+			}
 
-						infoHTML += `<div class="info-header">`;
+			problemInfo.innerHTML = `
+				<div style="color: #6b7280; text-align: center; padding: 20px;">
+					<div>⏳ Loading problem info...</div>
+				</div>
+			`;
 
-						if (response.problemNumber) {
-							infoHTML += `<div class="problem-number">#${response.problemNumber}</div>`;
-						}
+			try {
+				const response = await chrome.tabs.sendMessage(tab.id, {
+					action: "getProblemInfo",
+				});
 
-						infoHTML += `<div class="button-group">`;
-						infoHTML += `<button id="addToBucketBtn" class="bucket-btn">🪣 Add</button>`;
-						infoHTML += `<button id="viewBucketBtn" class="bucket-btn">👁️ View</button>`;
-						infoHTML += `</div>`;
+				if (response && response.onProblem) {
+					renderProblemInfo(
+						response,
+						problemInfo,
+						bucketListContainer
+					);
+				} else {
+					problemInfo.innerHTML = `
+						<div style="color: #f59e0b; text-align: center; padding: 20px;">
+							<div>⚠️ Problem Not Detected</div>
+							<div style="font-size: 12px; margin-top: 8px;">
+								Make sure you're on a LeetCode problem page
+							</div>
+							<button id="viewBucketBtn" class="bucket-btn" style="margin-top: 12px;">👁️ View Bucket</button>
+						</div>
+					`;
 
-						infoHTML += `</div>`;
-
-						if (response.problemTitle) {
-							infoHTML += `<div class="problem-title">${response.problemTitle}</div>`;
-						}
-
-						if (response.difficulty) {
-							infoHTML += `<div class="difficulty difficulty-${response.difficulty.toLowerCase()}">${
-								response.difficulty
-							}</div>`;
-						}
-
-						problemInfo.innerHTML = infoHTML;
-
-						const addBucketBtn =
-							document.getElementById("addToBucketBtn");
-						const viewBucketBtn =
-							document.getElementById("viewBucketBtn");
-
-						addBucketBtn.addEventListener("click", async () => {
-							if (!response) return;
-							console.log("Add to bucket button clicked");
-
-							const bucketRef = doc(db, `users/${userId}/buckets/default`);
-							const docSnap = await getDoc(bucketRef);
-							const currentProblems = docSnap.exists() ? docSnap.data().problems || [] : [];
-
-							const alreadyInBucket = currentProblems.some(
-								(p) => p.url.toLowerCase() === response.url.toLowerCase()
-							);
-
-							if (!alreadyInBucket) {
-								currentProblems.push(response);
-								console.log("Writing to Firestore with:", currentProblems);
-								await setDoc(bucketRef, { problems: currentProblems }, { merge: true });
-
-								addBucketBtn.innerHTML = "✅ Added!";
-								addBucketBtn.style.background = "#10b981";
-								addBucketBtn.style.color = "white";
-							} else {
-								addBucketBtn.innerHTML = "👍 Already added";
-								addBucketBtn.style.background = "#f59e0b";
-								addBucketBtn.style.color = "white";
-							}
-
-							setTimeout(() => {
-								addBucketBtn.innerHTML = "🪣 Add";
-								addBucketBtn.style.background = "";
-								addBucketBtn.style.color = "";
-							}, 1500);
-						});
-
-						viewBucketBtn.addEventListener("click", async () => {
-							isBucketVisible = !isBucketVisible;
-
-							if (isBucketVisible) {
-								bucketListContainer.style.display = "block";
-								viewBucketBtn.innerHTML = "🙈 Hide";
-								viewBucketBtn.style.background = "#6b7280";
-								viewBucketBtn.style.color = "white";
-								renderBucketList();
-							} else {
-								bucketListContainer.style.display = "none";
-								viewBucketBtn.innerHTML = "👁️ View";
-								viewBucketBtn.style.background = "";
-								viewBucketBtn.style.color = "";
-							}
-						});
+					const viewBucketBtn =
+						document.getElementById("viewBucketBtn");
+					if (viewBucketBtn) {
+						setupBucketViewButton(
+							viewBucketBtn,
+							bucketListContainer
+						);
 					}
-				} catch (error) {
-					console.log("Content script error:", error);
+				}
+			} catch (error) {
+				console.log("Content script error:", error);
+				problemInfo.innerHTML = `
+					<div style="color: #f59e0b; text-align: center; padding: 20px;">
+						<div>⚠️ Connection Error</div>
+						<div style="font-size: 12px; margin-top: 8px;">
+							Try refreshing the LeetCode page
+						</div>
+						<button id="viewBucketBtn" class="bucket-btn" style="margin-top: 12px;">👁️ View Bucket</button>
+					</div>
+				`;
+
+				const viewBucketBtn = document.getElementById("viewBucketBtn");
+				if (viewBucketBtn) {
+					setupBucketViewButton(viewBucketBtn, bucketListContainer);
 				}
 			}
 		} catch (error) {
-			console.error("Error:", error);
+			console.error("Error in initPopupWithUser:", error);
+			problemInfo.innerHTML = `
+				<div style="color: #ef4444; text-align: center; padding: 20px;">
+					<div>❌ Extension Error</div>
+					<div style="font-size: 12px; margin-top: 8px;">
+						Please restart the extension
+					</div>
+				</div>
+			`;
+		}
+
+		function renderProblemInfo(response, problemInfo, bucketListContainer) {
+			let infoHTML = "";
+
+			infoHTML += `<div class="info-header">`;
+
+			if (response.problemNumber) {
+				infoHTML += `<div class="problem-number">#${response.problemNumber}</div>`;
+			}
+
+			infoHTML += `<div class="button-group">`;
+			infoHTML += `<button id="addToBucketBtn" class="bucket-btn">🪣 Add</button>`;
+			infoHTML += `<button id="viewBucketBtn" class="bucket-btn">👁️ View</button>`;
+			infoHTML += `</div>`;
+
+			infoHTML += `</div>`;
+
+			if (response.problemTitle) {
+				infoHTML += `<div class="problem-title">${response.problemTitle}</div>`;
+			}
+
+			if (response.difficulty) {
+				infoHTML += `<div class="difficulty difficulty-${response.difficulty.toLowerCase()}">${
+					response.difficulty
+				}</div>`;
+			}
+
+			problemInfo.innerHTML = infoHTML;
+
+			const addBucketBtn = document.getElementById("addToBucketBtn");
+			const viewBucketBtn = document.getElementById("viewBucketBtn");
+
+			setupAddToBucketButton(addBucketBtn, response);
+			setupBucketViewButton(viewBucketBtn, bucketListContainer);
+		}
+
+		function setupAddToBucketButton(button, problemData) {
+			button.addEventListener("click", async () => {
+				if (!problemData || !isOnline) {
+					if (!isOnline) {
+						showError(button, "Offline - Try again when connected");
+					} else {
+						showError(button, "Problem data missing");
+					}
+					return;
+				}
+
+				showLoading(button, "Adding...");
+
+				try {
+					await retryOperation(async () => {
+						const bucketRef = doc(
+							db,
+							`users/${userId}/buckets/default`
+						);
+						const docSnap = await getDoc(bucketRef);
+						const currentProblems = docSnap.exists()
+							? docSnap.data().problems || []
+							: [];
+
+						const alreadyInBucket = currentProblems.some(
+							(p) =>
+								p.url.toLowerCase() ===
+								problemData.url.toLowerCase()
+						);
+
+						if (!alreadyInBucket) {
+							//data validation
+							const problemToAdd = {
+								problemNumber:
+									problemData.problemNumber || "Unknown",
+								problemTitle:
+									problemData.problemTitle ||
+									"Unknown Problem",
+								difficulty: problemData.difficulty || "Unknown",
+								url: problemData.url,
+								addedAt: new Date().toISOString(),
+							};
+
+							currentProblems.push(problemToAdd);
+							await setDoc(
+								bucketRef,
+								{ problems: currentProblems },
+								{ merge: true }
+							);
+							showSuccess(button, "Added to bucket!");
+						} else {
+							showSuccess(button, "Already in bucket");
+						}
+					});
+				} catch (error) {
+					console.error("Error adding to bucket:", error);
+
+					if (error.code === "permission-denied") {
+						showError(
+							button,
+							"Permission denied - Try signing in again"
+						);
+					} else if (error.code === "unavailable") {
+						showError(
+							button,
+							"Service unavailable - Try again later"
+						);
+					} else {
+						showError(button, "Failed to add - Try again");
+					}
+				}
+			});
+		}
+
+		function setupBucketViewButton(button, bucketListContainer) {
+			button.addEventListener("click", async () => {
+				isBucketVisible = !isBucketVisible;
+
+				if (isBucketVisible) {
+					bucketListContainer.style.display = "block";
+					button.innerHTML = "🙈 Hide";
+					button.style.background = "#6b7280";
+					button.style.color = "white";
+					await renderBucketList();
+				} else {
+					bucketListContainer.style.display = "none";
+					button.innerHTML = "👁️ View";
+					button.style.background = "";
+					button.style.color = "";
+				}
+			});
 		}
 	}
 
 	async function renderBucketList() {
-		const bucketRef = doc(db, `users/${userId}/buckets/default`);
-		const docSnap = await getDoc(bucketRef);
-		const bucket = docSnap.exists() ? docSnap.data().problems || [] : [];
+		const bucketList = document.getElementById("bucketList");
 
-		bucketList.innerHTML = "";
+		bucketList.innerHTML = `
+			<div style="color: #6b7280; text-align: center; padding: 20px;">
+				⏳ Loading bucket...
+			</div>
+		`;
 
-		if (bucket.length === 0) {
-			bucketList.innerHTML =
-			'<div style="color: #6b7280; text-align: center; padding: 20px;">No problems in bucket yet</div>';
-			return;
-		}
+		try {
+			await retryOperation(async () => {
+				const bucketRef = doc(db, `users/${userId}/buckets/default`);
+				const docSnap = await getDoc(bucketRef);
+				const bucket = docSnap.exists()
+					? docSnap.data().problems || []
+					: [];
 
-		bucket.forEach((problem, index) => {
-			const item = document.createElement("div");
-			item.className = "bucket-item";
-			item.innerHTML = `
-			<a href="${problem.url}" target="_blank">
-				<span class="bucket-difficulty-${(problem.difficulty || "").toLowerCase()}">
-				#${problem.problemNumber || "?"}: ${problem.problemTitle}
-				</span>
-			</a>
-			<button data-index="${index}" class="remove-button">❌</button>
-			`;
-			bucketList.appendChild(item);
-		});
+				bucketList.innerHTML = "";
 
-		document.querySelectorAll(".remove-button").forEach((btn) => {
-			btn.addEventListener("click", async (e) => {
-			const indexToRemove = parseInt(e.target.dataset.index);
-			bucket.splice(indexToRemove, 1);
-			await setDoc(bucketRef, { problems: bucket }, { merge: true });
-			renderBucketList();
+				if (bucket.length === 0) {
+					bucketList.innerHTML = `
+						<div style="color: #6b7280; text-align: center; padding: 20px;">
+							<div>📝 No problems saved yet</div>
+							<div style="font-size: 12px; margin-top: 8px;">
+								Add problems from LeetCode to track them here
+							</div>
+						</div>
+					`;
+					return;
+				}
+
+				bucket.forEach((problem, index) => {
+					const item = document.createElement("div");
+					item.className = "bucket-item";
+
+					const problemNumber = problem.problemNumber || "?";
+					const problemTitle =
+						problem.problemTitle || "Unknown Problem";
+					const difficulty = (problem.difficulty || "").toLowerCase();
+					const url = problem.url || "#";
+
+					item.innerHTML = `
+						<a href="${url}" target="_blank">
+							<span class="bucket-difficulty-${difficulty}">
+								#${problemNumber}: ${problemTitle}
+							</span>
+						</a>
+						<button data-index="${index}" class="remove-button" title="Remove from bucket">❌</button>
+					`;
+					bucketList.appendChild(item);
+				});
+
+				document.querySelectorAll(".remove-button").forEach((btn) => {
+					btn.addEventListener("click", async (e) => {
+						const indexToRemove = parseInt(e.target.dataset.index);
+						const originalText = e.target.innerHTML;
+
+						e.target.innerHTML = "⏳";
+						e.target.disabled = true;
+
+						try {
+							await retryOperation(async () => {
+								bucket.splice(indexToRemove, 1);
+								const bucketRef = doc(
+									db,
+									`users/${userId}/buckets/default`
+								);
+								await setDoc(
+									bucketRef,
+									{ problems: bucket },
+									{ merge: true }
+								);
+							});
+
+							await renderBucketList(); // re-render the list
+						} catch (error) {
+							console.error("Error removing from bucket:", error);
+							e.target.innerHTML = "❌";
+							e.target.disabled = false;
+
+							//temp error message
+							const errorMsg = document.createElement("div");
+							errorMsg.style.cssText =
+								"color: #ef4444; font-size: 12px; margin-top: 4px;";
+							errorMsg.textContent =
+								"Failed to remove - try again";
+							e.target.parentNode.appendChild(errorMsg);
+
+							setTimeout(() => {
+								if (errorMsg.parentNode) {
+									errorMsg.parentNode.removeChild(errorMsg);
+								}
+							}, 3000);
+						}
+					});
+				});
 			});
-		});
+		} catch (error) {
+			console.error("Error loading bucket:", error);
+			bucketList.innerHTML = `
+				<div style="color: #ef4444; text-align: center; padding: 20px;">
+					<div>❌ Failed to load bucket</div>
+					<div style="font-size: 12px; margin-top: 8px;">
+						Check your connection and try again
+					</div>
+				</div>
+			`;
 		}
-
+	}
 });

@@ -5,9 +5,21 @@ work in progress...
 ## installation
 
 1. clone repo
-2. open chrome >> manage extensions
-3. toggle on **"developer mode"**
-4. click **"load unpacked"**
-5. select `dist` folder in cloned repo
+2. install dependencies
 
-right now the extension shows the problem information and allows users to save problems they want to come back to
+    ```bash
+    npm install
+    ```
+
+3. build the extension
+
+    ```bash
+    npm run build
+    ```
+
+4. load in chrome
+
+    - chrome >> `chrome://extensions/`
+    - toggle on **"developer mode"**
+    - click **"Load unpacked"**
+    - select the `dist` folder from the cloned repo
