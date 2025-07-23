@@ -9,8 +9,9 @@ import { getDoc, setDoc, doc } from "firebase/firestore";
 
 console.log("Firebase app initialized:", app.name);
 
-let userId = null; //will be set later
+let userId = null;
 let isOnline = navigator.onLine;
+let activeTimer = null;
 
 const FEEDBACK_DURATION = 3000;
 const MAX_RETRIES = 3;
@@ -273,6 +274,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 			infoHTML += `<div class="button-group">`;
 			infoHTML += `<button id="addToBucketBtn" class="bucket-btn">🪣 Add</button>`;
 			infoHTML += `<button id="viewBucketBtn" class="bucket-btn">👁️ View</button>`;
+			infoHTML += `<button id="startTimerBtn" class="bucket-btn">⏱️ Timer</button>`;
 			infoHTML += `</div>`;
 
 			infoHTML += `</div>`;
@@ -291,9 +293,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 			const addBucketBtn = document.getElementById("addToBucketBtn");
 			const viewBucketBtn = document.getElementById("viewBucketBtn");
+			const timerBtn = document.getElementById("startTimerBtn");
+
+			//if timer is already running, update UI
+			chrome.storage.local.get(["activeTimer"], (result) => {
+				const activeTimer = result.activeTimer;
+				if (activeTimer && activeTimer.problemTitle === response.problemTitle) {
+					timerBtn.innerHTML = "⏹️ Stop";
+					timerBtn.style.background = "#f59e0b";
+					timerBtn.style.color = "white";
+				}
+			});
 
 			setupAddToBucketButton(addBucketBtn, response);
 			setupBucketViewButton(viewBucketBtn, bucketListContainer);
+			setupTimerButton(timerBtn, response);
 		}
 
 		function setupAddToBucketButton(button, problemData) {
@@ -337,6 +351,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 								difficulty: problemData.difficulty || "Unknown",
 								url: problemData.url,
 								addedAt: new Date().toISOString(),
+								times: [],
 							};
 
 							currentProblems.push(problemToAdd);
@@ -386,6 +401,69 @@ document.addEventListener("DOMContentLoaded", async () => {
 					button.style.background = "";
 					button.style.color = "";
 				}
+			});
+		}
+
+		function setupTimerButton(button, problemData) {
+			button.addEventListener("click", async () => {
+				if (!problemData || !userId) return;
+
+				const currentTitle = problemData.problemTitle;
+
+				chrome.storage.local.get(["activeTimer"], async (result) => {
+					const activeTimer = result.activeTimer;
+					const activeTitle = activeTimer?.problemTitle;
+
+					if (activeTimer && activeTitle == currentTitle) {
+						//case 1: if timer is alrdy runnning and we're on the problem with the timer, stop the timer
+						const elapsedMs = Date.now() - activeTimer.startTime;
+						const elapsedSeconds = Math.round(elapsedMs / 1000);
+						const mins = Math.floor(elapsedSeconds / 60);
+						const secs = elapsedSeconds % 60;
+
+						chrome.storage.local.remove("activeTimer");
+
+						//reset button UI
+						button.innerHTML = "⏱️ Timer";
+						button.style.background = "";
+						button.style.color = "";
+
+						//save to firestore
+						try {
+							await retryOperation(async () => {
+								const bucketRef = doc(db, `users/${userId}/buckets/default`);
+								const docSnap = await getDoc(bucketRef);
+								if (!docSnap.exists()) return;
+
+								const currentProblems = docSnap.data().problems || [];
+								const index = currentProblems.findIndex(p => p.problemTitle === currentTitle);
+								if (index === -1) return;
+
+								if (!Array.isArray(currentProblems[index].times)) {
+									currentProblems[index].times = [];
+								}
+								currentProblems[index].times.push(`${mins}m ${secs}s`);
+
+								await setDoc(bucketRef, { problems: currentProblems }, { merge: true });
+								showSuccess(button, "Time saved!");
+							});
+						} catch (error) {
+							console.error("Failed to save time:", error);
+							showError(button, "Failed to save time");
+						}
+					} else { 
+						//either no active timer or we're not on the same problem with the active timer, so start a new timer
+						chrome.storage.local.set({
+							activeTimer: {
+								startTime: Date.now(),
+								problemTitle: problemData.problemTitle,
+							}
+						});
+						button.innerHTML = "⏹️ Stop";
+						button.style.background = "#f59e0b";
+						button.style.color = "white";
+					}
+				});
 			});
 		}
 	}
@@ -443,6 +521,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 				});
 
 				document.querySelectorAll(".remove-button").forEach((btn) => {
+					//TODO: change to matching by problem title rather than data-index attribute for safety
 					btn.addEventListener("click", async (e) => {
 						const indexToRemove = parseInt(e.target.dataset.index);
 						const originalText = e.target.innerHTML;
