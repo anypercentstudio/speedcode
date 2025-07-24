@@ -8,6 +8,7 @@
 	--color-success: #10b981;
 	--color-error: #ef4444;
 	--color-warning: #f59e0b;
+	--color-info: #3b82f6;
 	--radius-lg: 12px;
 	--radius-sm: 6px;
 	--shadow-soft: 0 8px 32px -8px rgba(0, 0, 0, 0.1);
@@ -23,6 +24,82 @@ body {
 	position: relative;
 }
 
+@keyframes loading {
+	0% {
+		transform: translateX(-100%);
+	}
+	50% {
+		transform: translateX(0%);
+	}
+	100% {
+		transform: translateX(100%);
+	}
+}
+
+@keyframes bounce {
+	0%,
+	20%,
+	50%,
+	80%,
+	100% {
+		transform: translateY(0);
+	}
+	40% {
+		transform: translateY(-10px);
+	}
+	60% {
+		transform: translateY(-5px);
+	}
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes slideDown {
+	from {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes spin {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes pulse {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0.7;
+	}
+}
+
+.speedcode-fade-in {
+	animation: fadeIn 0.4s ease-out forwards;
+}
+
+.loading {
+	animation: spin 1s linear infinite;
+}
+
 .problem-info {
 	width: 300px;
 	padding: 24px;
@@ -32,6 +109,7 @@ body {
 	flex-direction: column;
 	gap: 16px;
 	box-shadow: var(--shadow-soft);
+	min-height: 120px; /* Prevent layout shift */
 }
 
 .info-header {
@@ -43,7 +121,8 @@ body {
 
 .button-group {
 	display: flex;
-	gap: 8px;
+	gap: 6px;
+	flex-wrap: wrap;
 }
 
 .problem-number {
@@ -97,62 +176,142 @@ body {
 	border-radius: var(--radius-sm);
 	transition: all 0.3s ease;
 	border: none;
-	padding: 6px 10px;
+	padding: 6px 8px;
 	cursor: pointer;
-	font-size: 12px;
+	font-size: 11px;
 	white-space: nowrap;
-	min-width: 60px;
+	min-width: 50px;
 	position: relative;
+	flex: 1;
 }
 
 .bucket-btn:hover:not(:disabled) {
 	background-color: var(--color-gray);
 	color: var(--color-white);
 	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .bucket-btn:disabled {
 	cursor: not-allowed;
 	transform: none;
+	animation: pulse 1.5s ease-in-out infinite alternate;
 }
 
 .bucket-btn:active:not(:disabled) {
 	transform: translateY(0);
 }
 
-.bucket-btn:disabled {
-	animation: pulse 1.5s ease-in-out infinite alternate;
+.bucket-btn:focus-visible {
+	outline: 2px solid var(--color-white);
+	outline-offset: 2px;
 }
 
-@keyframes pulse {
-	from {
-		opacity: 1;
-	}
-	to {
-		opacity: 0.7;
-	}
+.loading-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	padding: 32px 24px;
+	min-height: 120px;
 }
 
-.bucket {
+.loading-icon {
+	font-size: 32px;
+	margin-bottom: 16px;
+	animation: bounce 2s infinite;
+}
+
+.loading-title {
 	color: var(--color-white);
+	font-size: 16px;
 	font-weight: 600;
+	margin-bottom: 8px;
 }
 
-.bucket-difficulty-easy {
-	color: var(--color-easy);
+.loading-subtitle {
+	color: var(--color-gray);
+	font-size: 13px;
+	margin-bottom: 20px;
 }
 
-.bucket-difficulty-medium {
-	color: var(--color-medium);
+.loading-bar {
+	width: 100%;
+	height: 3px;
+	background: #333;
+	border-radius: 2px;
+	overflow: hidden;
+	position: relative;
 }
 
-.bucket-difficulty-hard {
-	color: var(--color-hard);
+.loading-bar-fill {
+	width: 100%;
+	height: 100%;
+	border-radius: 2px;
+	animation: loading 2s ease-in-out infinite;
+}
+
+.error-state {
+	background-color: rgba(239, 68, 68, 0.1);
+	border: 1px solid var(--color-error);
+	border-radius: var(--radius-sm);
+	padding: 20px;
+	text-align: center;
+	animation: fadeIn 0.3s ease-out;
+}
+
+.success-state {
+	background-color: rgba(16, 185, 129, 0.1);
+	border: 1px solid var(--color-success);
+	border-radius: var(--radius-sm);
+	padding: 20px;
+	text-align: center;
+	animation: fadeIn 0.3s ease-out;
+}
+
+.warning-state {
+	background-color: rgba(245, 158, 11, 0.1);
+	border: 1px solid var(--color-warning);
+	border-radius: var(--radius-sm);
+	padding: 20px;
+	text-align: center;
+	animation: fadeIn 0.3s ease-out;
+}
+
+.status-message {
+	font-size: 14px;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+
+.status-subtitle {
+	font-size: 12px;
+	opacity: 0.8;
+	line-height: 1.4;
+}
+
+.retry-btn {
+	background: var(--color-info);
+	color: var(--color-white);
+	border: none;
+	padding: 8px 16px;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: 600;
+	margin-top: 12px;
+	transition: all 0.2s ease;
+}
+
+.retry-btn:hover {
+	background: #2563eb;
+	transform: translateY(-1px);
 }
 
 .bucket-list {
 	margin-top: 10px;
-	max-height: 300px;
+	max-height: 400px;
 	overflow-y: auto;
 	width: 300px;
 	padding: 24px;
@@ -164,10 +323,12 @@ body {
 .bucket-item {
 	display: flex;
 	justify-content: space-between;
-	align-items: center;
-	padding: 8px 0;
+	align-items: flex-start;
+	padding: 12px 0;
 	border-bottom: 1px solid #333;
 	transition: all 0.2s ease;
+	gap: 12px;
+	animation: fadeIn 0.3s ease-out;
 }
 
 .bucket-item:last-child {
@@ -184,10 +345,11 @@ body {
 .bucket-item a {
 	text-decoration: none;
 	color: var(--color-white);
-	flex: 1;
 	word-wrap: break-word;
 	overflow-wrap: break-word;
 	hyphens: auto;
+	display: block;
+	transition: opacity 0.2s ease;
 }
 
 .bucket-item a:hover {
@@ -206,6 +368,7 @@ body {
 	font-size: 12px;
 	min-width: 24px;
 	flex-shrink: 0;
+	align-self: flex-start;
 }
 
 .remove-button:hover:not(:disabled) {
@@ -219,55 +382,177 @@ body {
 	transform: none;
 }
 
+.remove-button:focus-visible {
+	outline: 2px solid var(--color-hard);
+	outline-offset: 2px;
+}
+
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.9);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 10000;
+	backdrop-filter: blur(8px);
+	animation: fadeIn 0.3s ease-out;
+}
+
+.modal-content {
+	background: var(--color-black);
+	padding: 32px;
+	border-radius: 16px;
+	width: 320px;
+	text-align: center;
+	border: 1px solid #333;
+	box-shadow: var(--shadow-soft);
+	animation: fadeIn 0.3s ease-out;
+}
+
+.modal-content h3 {
+	color: var(--color-white);
+	margin: 0 0 8px 0;
+	font-size: 20px;
+}
+
+.modal-content p {
+	color: var(--color-gray);
+	margin: 0 0 24px 0;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.modal-content input {
+	width: 100%;
+	padding: 14px;
+	border: 2px solid #333;
+	border-radius: 8px;
+	background: #333;
+	color: var(--color-white);
+	font-size: 16px;
+	margin-bottom: 20px;
+	box-sizing: border-box;
+	transition: border-color 0.2s ease;
+}
+
+.modal-content input:focus {
+	outline: none;
+	border-color: var(--color-success);
+}
+
+.modal-content button {
+	background: linear-gradient(135deg, var(--color-success), #059669);
+	color: var(--color-white);
+	border: none;
+	padding: 14px 28px;
+	border-radius: 8px;
+	cursor: pointer;
+	font-weight: 600;
+	width: 100%;
+	font-size: 16px;
+	transition: transform 0.2s ease;
+}
+
+.modal-content button:hover:not(:disabled) {
+	transform: translateY(-1px);
+}
+
+.modal-content button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.bucket-difficulty-easy {
+	color: var(--color-easy);
+}
+
+.bucket-difficulty-medium {
+	color: var(--color-medium);
+}
+
+.bucket-difficulty-hard {
+	color: var(--color-hard);
+}
+
+.bucket-item:hover .problem-attribution,
+.bucket-item:hover .problem-times {
+	color: #aaa;
+}
+
+.bucket-item:hover .bucket-difficulty-easy {
+	color: #00d4aa;
+}
+
+.bucket-item:hover .bucket-difficulty-medium {
+	color: #ffc400;
+}
+
+.bucket-item:hover .bucket-difficulty-hard {
+	color: #ff5577;
+}
+
+.room-selector {
+	margin-bottom: 16px;
+	padding: 12px;
+	background: #333;
+	border-radius: var(--radius-sm);
+	animation: fadeIn 0.3s ease-out;
+}
+
+.room-selector select {
+	width: 100%;
+	padding: 8px;
+	background: var(--color-black);
+	color: var(--color-white);
+	border: 1px solid #555;
+	border-radius: 4px;
+	font-size: 12px;
+}
+
+.room-selector select:focus {
+	outline: none;
+	border-color: var(--color-info);
+}
+
+.problem-attribution {
+	font-size: 10px;
+	color: #888;
+	margin-top: 2px;
+	font-style: italic;
+}
+
+.problem-times {
+	font-size: 10px;
+	color: #888;
+	margin-top: 4px;
+}
+
+.problem-times .time-entry {
+	display: inline-block;
+	margin-right: 8px;
+	padding: 2px 6px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 3px;
+	margin-bottom: 2px;
+}
+
 #connectionStatus {
 	animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-	from {
-		transform: translateY(-100%);
-		opacity: 0;
-	}
-	to {
-		transform: translateY(0);
-		opacity: 1;
-	}
-}
-
-.error-state {
-	background-color: rgba(239, 68, 68, 0.1);
-	border: 1px solid var(--color-error);
-	border-radius: var(--radius-sm);
-	padding: 16px;
-	text-align: center;
-}
-
-.success-state {
-	background-color: rgba(16, 185, 129, 0.1);
-	border: 1px solid var(--color-success);
-	border-radius: var(--radius-sm);
-	padding: 16px;
-	text-align: center;
-}
-
-.warning-state {
-	background-color: rgba(245, 158, 11, 0.1);
-	border: 1px solid var(--color-warning);
-	border-radius: var(--radius-sm);
-	padding: 16px;
-	text-align: center;
-}
-
-.status-message {
-	font-size: 14px;
-	font-weight: 600;
-	margin-bottom: 8px;
-}
-
-.status-subtitle {
+	position: fixed;
+	top: 10px;
+	left: 10px;
+	right: 10px;
+	padding: 8px;
+	border-radius: 6px;
 	font-size: 12px;
-	opacity: 0.8;
-	line-height: 1.4;
+	text-align: center;
+	z-index: 1000;
+	display: none;
 }
 
 .bucket-list::-webkit-scrollbar {
@@ -288,22 +573,6 @@ body {
 	background: #9ca3af;
 }
 
-.bucket-item,
-.bucket-btn,
-.problem-info {
-	transition: all 0.2s ease;
-}
-
-.bucket-btn:focus-visible {
-	outline: 2px solid var(--color-white);
-	outline-offset: 2px;
-}
-
-.remove-button:focus-visible {
-	outline: 2px solid var(--color-hard);
-	outline-offset: 2px;
-}
-
 @media (max-width: 320px) {
 	.problem-info,
 	.bucket-list {
@@ -312,11 +581,39 @@ body {
 	}
 
 	.button-group {
-		flex-direction: column;
 		gap: 4px;
 	}
 
 	.bucket-btn {
-		width: 100%;
+		font-size: 10px;
+		padding: 5px 6px;
+		min-width: 45px;
+	}
+
+	.modal-content {
+		width: 260px;
+		padding: 20px;
+	}
+
+	.loading-container {
+		padding: 24px 16px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+@media (prefers-contrast: high) {
+	.bucket-btn {
+		border: 2px solid var(--color-white);
+	}
+
+	.bucket-item {
+		border-bottom: 2px solid #555;
 	}
 }

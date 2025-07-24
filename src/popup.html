@@ -11,6 +11,56 @@
 		<div id="bucketListContainer" style="display: none">
 			<div id="bucketList" class="bucket-list"></div>
 		</div>
+
+		<template id="usernameModalTemplate">
+			<div class="username-modal">
+				<div class="username-modal-content">
+					<h3>pick a nickname</h3>
+					<input
+						type="text"
+						id="usernameInput"
+						placeholder="Enter username..."
+						maxlength="20"
+					/>
+					<button id="saveUsernameBtn">save nickname</button>
+					<div
+						style="color: #6b7280; font-size: 12px; margin-top: 8px"
+					>
+						u can change this later in settings
+					</div>
+				</div>
+			</div>
+		</template>
+
+		<template id="shareModalTemplate">
+			<div class="share-modal">
+				<div class="share-modal-content">
+					<h3>shared problem bucket</h3>
+
+					<button id="createRoomBtn" class="create-btn">
+						🏠 create new room
+					</button>
+
+					<div class="divider">
+						<span>or</span>
+					</div>
+
+					<input
+						type="text"
+						id="roomIdInput"
+						placeholder="Enter Room ID..."
+						maxlength="6"
+					/>
+
+					<button id="joinRoomBtn" class="join-btn">
+						🚪 join room
+					</button>
+
+					<button id="cancelBtn" class="cancel-btn">cancel</button>
+				</div>
+			</div>
+		</template>
+
 		<script type="module" src="./popup.js"></script>
 	</body>
 </html>
