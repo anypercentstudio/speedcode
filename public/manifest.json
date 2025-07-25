@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"name": "SpeedCode",
 	"version": "1.0.0",
-	"description": "who knows what this idea could grow to be?",
+	"description": "a sick chrome extension that the woke left fears",
 	"permissions": ["activeTab", "storage", "offscreen"],
 	"host_permissions": [
 		"https://*.firebaseio.com/*",
