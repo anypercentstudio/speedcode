@@ -39,7 +39,6 @@ speedcode is a chrome extension that enhances leetcode and is literally always e
 
 -   [ ] ranking system
 -   [ ] firefox support
--   [ ] good looks
 
 ## architecture
 
