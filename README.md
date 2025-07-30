@@ -33,8 +33,6 @@ speedcode is a chrome extension that enhances leetcode and is literally always e
 
 ### firefox
 
-### Firefox
-
 1. **follow steps 1-2 above**
 
 2. **build for firefox**
@@ -73,11 +71,12 @@ npm run package:all      # creates zip files for distribution
 src/
 ├── popup.js
 ├── modules/
-│   ├── auth.js          # authentication & user management
-│   ├── database.js      # firebase/firestore operations
-│   ├── ui.js            # UI management & DOM manipulation
-│   ├── state.js         # centralized state management
-│   └── utils.js         # utilities & helper functions
+│   ├── auth.js               # authentication & user management
+│   ├── database.js           # firebase/firestore operations
+│   ├── ui.js                 # UI management & DOM manipulation
+│   ├── state.js              # centralized state management
+│   ├── utils.js              # utilities & helper functions
+│   └── browser-polyfill.js   # cross-browser API compatibility
 ├── popup.html
 ├── popup.css
 └── firebaseConfig.js
