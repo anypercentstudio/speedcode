@@ -1,0 +1,48 @@
+{
+	"manifest_version": 2,
+	"name": "SpeedCode",
+	"version": "1.0.0",
+	"description": "a sick chrome extension that the woke left fears",
+
+	"permissions": [
+		"activeTab",
+		"storage",
+		"https://*.firebaseio.com/*",
+		"https://*.googleapis.com/*",
+		"https://*.firestore.googleapis.com/*"
+	],
+
+	"content_scripts": [
+		{
+			"matches": ["*://leetcode.com/*", "*://*.leetcode.com/*"],
+			"js": ["content.js"],
+			"run_at": "document_end",
+			"all_frames": false
+		}
+	],
+
+	"browser_action": {
+		"default_popup": "popup.html",
+		"default_title": "SpeedCode - LeetCode Tracker"
+	},
+
+	"icons": {
+		"16": "myicon.png",
+		"48": "myicon.png",
+		"128": "myicon.png"
+	},
+
+	"background": {
+		"scripts": ["background.firefox.js"],
+		"persistent": false
+	},
+
+	"web_accessible_resources": ["*.js", "*.css"],
+
+	"applications": {
+		"gecko": {
+			"id": "speedcode@yourcompany.com",
+			"strict_min_version": "109.0"
+		}
+	}
+}
