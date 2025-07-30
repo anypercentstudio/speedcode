@@ -4,10 +4,12 @@ speedcode is a chrome extension that enhances leetcode and is literally always e
 
 ## installation
 
+### chrome
+
 1. **clone the repository**
 
     ```bash
-    git clone https://github.com/yourusername/speedcode.git
+    git clone https://github.com/saracheak/speedcode.git
     cd speedcode
     ```
 
@@ -29,16 +31,41 @@ speedcode is a chrome extension that enhances leetcode and is literally always e
     - click **"Load unpacked"**
     - select the `dist` folder from the project directory
 
+### firefox
+
+### Firefox
+
+1. **follow steps 1-2 above**
+
+2. **build for firefox**
+
+    ```bash
+    npm run build:firefox
+    ```
+
+3. **load in firefox**
+    - open firefox and navigate to `about:debugging`
+    - click **"This Firefox"**
+    - click **"Load Temporary Add-on"**
+    - select the `manifest-firefox.json` file from the `dist-firefox` folder
+
+### build for Both Browsers
+
+```bash
+npm run build:all        # builds for both chrome and firefox
+npm run package:all      # creates zip files for distribution
+```
+
 ## what we do
 
 -   [x] problem detection
 -   [x] manual timer
 -   [x] individual and shared problem bucket
+-   [x] cross-browser support (chrome + firefox)
 
 ## what we gon do
 
 -   [ ] ranking system
--   [ ] firefox support
 
 ## architecture
 
