@@ -1,3 +1,5 @@
+import { CrossBrowserAPI } from "./browser-polyfill.js";
+
 export const CONSTANTS = {
 	FEEDBACK_DURATION: 3000,
 	MAX_RETRIES: 3,
@@ -199,16 +201,16 @@ export const NetworkUtils = {
 
 export const ChromeUtils = {
 	async getCurrentTab() {
-		const [tab] = await chrome.tabs.query({
+		const tabs = await CrossBrowserAPI.tabs.query({
 			active: true,
 			currentWindow: true,
 		});
-		return tab;
+		return tabs[0];
 	},
 
 	async sendMessageToTab(tabId, message) {
 		try {
-			return await chrome.tabs.sendMessage(tabId, message);
+			return await CrossBrowserAPI.tabs.sendMessage(tabId, message);
 		} catch (error) {
 			console.log("Content script message error:", error);
 			throw error;

@@ -19,6 +19,7 @@ lerna-debug.log*
 
 # === Build outputs ===
 dist/
+dist-firefox/
 build/
 out/
 *.tsbuildinfo

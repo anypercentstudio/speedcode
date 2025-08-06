@@ -1,5 +1,7 @@
 console.log("SpeedCode content script loaded");
 
+const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+
 const EXTRACTION_TIMEOUT = 5000; // 5 sec max for extraction
 const RETRY_DELAY = 500;
 const MAX_EXTRACTION_RETRIES = 3;
@@ -357,7 +359,7 @@ async function extractWithRetry() {
 	}
 }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	if (request.action === "getProblemInfo") {
 		console.log("Received getProblemInfo request");
 
@@ -379,7 +381,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				sendResponse({ onProblem: false, error: error.message });
 			});
 
-		return true;
+		return true; // Keep message channel open for async response
 	}
 });
 
