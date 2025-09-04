@@ -84,7 +84,7 @@ export class UIManager {
 		`;
 	}
 
-	renderProblemInfo(problemData) {
+	renderProblemInfo(problemData, joinedRooms, username, addToBucketCallback) {
 		let infoHTML = `<div class="info-header speedcode-fade-in">`;
 
 		if (problemData.problemNumber) {
@@ -92,7 +92,7 @@ export class UIManager {
 		}
 
 		infoHTML += `<div class="button-group">`;
-		infoHTML += `<button id="addToBucketBtn" class="bucket-btn">🪣 Add</button>`;
+		//add button is slotted in dynamically by createAddToBucketDropdown
 		infoHTML += `<button id="viewBucketBtn" class="bucket-btn">👁️ View</button>`;
 		infoHTML += `<button id="shareBtn" class="bucket-btn">🔗 Share</button>`;
 		infoHTML += `<button id="startTimerBtn" class="bucket-btn">⏱️ Timer</button>`;
@@ -109,6 +109,13 @@ export class UIManager {
 		}
 
 		this.elements.problemInfo.innerHTML = infoHTML;
+		const dropdown = this.createAddToBucketDropdown(
+			problemData,
+			joinedRooms,
+			username,
+			addToBucketCallback
+		);
+		this.elements.problemInfo.querySelector(".button-group").prepend(dropdown);
 	}
 
 	renderBucketList(
@@ -212,6 +219,80 @@ export class UIManager {
 		} else {
 			this.elements.bucketList.appendChild(emptyDiv);
 		}
+	}
+
+	createAddToBucketDropdown(problemData, joinedRooms, username, callback) {
+		const container = document.createElement("div");
+		container.style.position = "relative";
+		container.style.display = "inline-block";
+
+		const mainButton = document.createElement("button");
+		mainButton.className = "bucket-btn";
+		mainButton.textContent = "🪣 Add ▾";
+		mainButton.id = "addToBucketBtn";
+
+		const list = document.createElement("div");
+		Object.assign(list.style, {
+			display: "none",
+			position: "absolute",
+			top: "calc(100% + 4px)",
+			left: "0",
+			background: "var(--color-surface-elevated)",
+			border: "1px solid var(--color-border)",
+			borderRadius: "var(--radius-sm)",
+			boxShadow: "var(--shadow-md)",
+			minWidth: "160px",
+			zIndex: "1000",
+			overflow: "hidden"
+		});
+
+		const addOption = (text, bucketId) => {
+			const item = document.createElement("div");
+			Object.assign(item.style, {
+				padding: "var(--space-sm) var(--space-md)",
+				cursor: "pointer",
+				fontSize: "var(--font-size-sm)",
+				color: "var(--color-text-primary)",
+				background: "var(--color-surface-elevated)",
+				transition: "background 0.2s ease"
+			});
+			item.textContent = text;
+			item.addEventListener("mouseover", () => {
+				item.style.background = "var(--color-surface-hover)";
+			});
+			item.addEventListener("mouseout", () => {
+				item.style.background = "var(--color-surface-elevated)";
+			});
+			item.addEventListener("click", () => {
+				callback(problemData, bucketId, item);
+				list.style.display = "none";
+			});
+			list.appendChild(item);
+		};
+
+		// Personal bucket
+		addOption(`📝 ${username}'s Personal Bucket`, "");
+
+		// Shared buckets
+		joinedRooms.forEach(room => {
+			if (room && room.id) {
+				addOption(`🏠 ${room.name} (${room.id})`, room.id);
+			}
+		});
+
+		mainButton.addEventListener("click", (e) => {
+			e.stopPropagation();
+			list.style.display = (list.style.display === "block") ? "none" : "block";
+		});
+
+		document.addEventListener("click", () => {
+			list.style.display = "none";
+		});
+
+		container.appendChild(mainButton);
+		container.appendChild(list);
+
+		return container;
 	}
 
 	displayProblems(problems, currentRoomId) {
@@ -741,7 +822,7 @@ export class UIManager {
 		element.style.color = "";
 
 		const buttonTexts = {
-			addToBucketBtn: "🪣 Add",
+			addToBucketBtn: "🪣 Add ▾",
 			viewBucketBtn: "👁️ View",
 			shareBtn: "🔗 Share",
 			startTimerBtn: "⏱️ Timer",
@@ -818,7 +899,7 @@ export class UIManager {
 
 	getButtons() {
 		return {
-			addToBucket: document.getElementById("addToBucketBtn"),
+			// addToBucket: document.getElementById("addToBucketBtn"),
 			viewBucket: document.getElementById("viewBucketBtn"),
 			share: document.getElementById("shareBtn"),
 			timer: document.getElementById("startTimerBtn"),

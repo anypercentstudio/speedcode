@@ -121,6 +121,8 @@ class SpeedCodePopup {
 	async detectAndRenderProblem(tab) {
 		this.ui.showLoadingUI(LoadingStates.DETECTING_PROBLEM);
 		this.state.setProblemDetection(true);
+		const joinedRooms = this.state.getState("room.joinedRooms");
+		const username = this.state.getState("user.username");
 
 		try {
 			const problemData = await ChromeUtils.sendMessageToTab(tab.id, {
@@ -134,7 +136,7 @@ class SpeedCodePopup {
 				ValidationUtils.isValidProblemData(problemData)
 			) {
 				this.state.setCurrentProblem(problemData);
-				this.ui.renderProblemInfo(problemData);
+				this.ui.renderProblemInfo(problemData, joinedRooms, username);
 				this.setupProblemButtons(problemData);
 			} else {
 				this.ui.showStateMessage(
@@ -158,12 +160,12 @@ class SpeedCodePopup {
 
 	setupProblemButtons(problemData) {
 		const buttons = this.ui.getButtons();
+		const joinedRooms = this.state.getState("room.joinedRooms") || [];
+		const username = this.state.getState("user.username");
 
-		if (buttons.addToBucket) {
-			buttons.addToBucket.addEventListener("click", () => {
-				this.handleAddToBucket(problemData);
-			});
-		}
+		this.ui.renderProblemInfo(problemData, joinedRooms, username, (selectedProblemData, bucketId, item) => {
+			this.handleAddToBucket(selectedProblemData, bucketId, item);
+		});
 
 		if (buttons.viewBucket) {
 			buttons.viewBucket.addEventListener("click", () => {
@@ -200,35 +202,58 @@ class SpeedCodePopup {
 		}
 	}
 
-	async handleAddToBucket(problemData) {
-		const button = this.ui.getButtons().addToBucket;
+	showToast(message, type = "success", duration = 1500) {
+		const oldToast = document.querySelector('.popup-toast');
+		if (oldToast) oldToast.remove();
+
+		const toast = document.createElement("div");
+		toast.className = `popup-toast ${type}`;
+		toast.textContent = message;
+
+		document.body.appendChild(toast);
+
+		setTimeout(() => toast.classList.add('show'), 10);
+
+		setTimeout(() => {
+			toast.classList.remove('show');
+			setTimeout(() => toast.remove(), 300);
+		}, duration);
+	}
+
+	async handleAddToBucket(problemData, bucketId, buttonElement) {
+		const button = buttonElement || this.ui.getButtons().addToBucket;
 		if (!button || !ValidationUtils.isValidProblemData(problemData)) return;
-
+		
+		const originalText = button.textContent;
+		
 		this.ui.showLoading(button, "Adding...");
-
+		
 		try {
-			const currentRoomId = this.state.getState("room.currentRoomId");
 			const username = this.state.getState("user.username");
 
 			const result = await this.database.addProblemToBucket(
 				problemData,
-				currentRoomId,
+				bucketId,
 				username
 			);
 
 			if (result.alreadyExists) {
-				this.ui.showSuccess(button, "Already in bucket");
+				this.showToast("✅ Already in bucket", "success");
 			} else {
-				const message = currentRoomId
-					? "Added to shared room!"
-					: "Added to bucket!";
-				this.ui.showSuccess(button, message);
+				const message = bucketId
+					? "✅ Added to shared room!"
+					: "✅ Added to bucket!";
+				this.showToast(message, "success");
 				this.state.addProblemToBucket(result.problem);
 			}
 		} catch (error) {
 			ErrorUtils.logError("handleAddToBucket", error);
-			this.ui.showError(button, "Failed to add - Try again");
-		}
+			this.showToast("❌ Failed to add - Try again", "failure");
+		} finally {
+			setTimeout(() => {
+				button.textContent = originalText;
+			}, 1500);
+    	}
 	}
 
 	async handleToggleBucket() {
