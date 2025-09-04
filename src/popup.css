@@ -821,13 +821,7 @@ body {
     font-weight: 700;
 	font-size: var(--font-size-xs);
     opacity: 0;
-	display: inline-flex;
-	align-items: center;
-	gap: 0.25rem;
-	cursor: not-allowed;
     z-index: 9999;
-	width: fit-content;
-	overflow: hidden;
     transition: opacity 0.3s ease, transform 0.3s ease;
     transform: translateY(0);
 }
