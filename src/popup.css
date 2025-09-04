@@ -812,6 +812,41 @@ body {
 	transform: none;
 }
 
+.popup-toast {
+    position: fixed;
+    bottom: 10px;
+    right: 20px;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+	font-size: var(--font-size-xs);
+    opacity: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	cursor: not-allowed;
+    z-index: 9999;
+	width: fit-content;
+	overflow: hidden;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: translateY(0);
+}
+
+.popup-toast.show {
+    opacity: 1;
+    transform: translateY(-5px);
+}
+
+.popup-toast.success {
+    background-color: #10b981;
+	color: white;
+}
+
+.popup-toast.failure {
+    background-color: #ef4444;
+	color: white;
+}
+
 .bucket-difficulty-easy {
 	color: var(--color-easy);
 	text-shadow: 0 0 8px rgba(0, 212, 170, 0.3);
