@@ -2,7 +2,7 @@
 	"manifest_version": 2,
 	"name": "SpeedCode",
 	"version": "1.0.0",
-	"description": "a sick chrome extension that the woke left fears",
+	"description": "Track LeetCode problems, time your solutions, and collaborate with friends in shared rooms.",
 
 	"permissions": [
 		"activeTab",

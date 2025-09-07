@@ -1,6 +1,6 @@
 # speedcode
 
-speedcode is a chrome extension that enhances leetcode and is literally always etc and so forth and so on and it's like shut up and therefore
+speedcode is a browser extension that can track LeetCode problems, time your solutions, and help you collaborate with friends in shared rooms
 
 ## installation
 
@@ -85,10 +85,6 @@ src/
 ## license
 
 this project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## acknowledgments
-
-thank u T. Swift and J. Christ (in that order)
 
 ## credits
 
