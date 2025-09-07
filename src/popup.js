@@ -9,7 +9,6 @@ import {
 	ValidationUtils,
 	ErrorUtils,
 	TimeUtils,
-	retryOperation,
 } from "./modules/utils.js";
 
 class SpeedCodePopup {
@@ -21,6 +20,7 @@ class SpeedCodePopup {
 
 		this.isInitialized = false;
 		this.cleanupFunctions = [];
+		this.currentProblemData = null;
 
 		console.log("SpeedCode popup initialized");
 	}
@@ -32,9 +32,7 @@ class SpeedCodePopup {
 			this.ui.showLoadingUI(LoadingStates.INITIALIZING);
 
 			await this.initializeAuth();
-
 			this.setupEventListeners();
-
 			await this.initializeMainUI();
 
 			this.isInitialized = true;
@@ -51,16 +49,18 @@ class SpeedCodePopup {
 		const user = await this.auth.initialize();
 		this.state.setUserAuth(user);
 
-		this.ui.showLoadingUI(LoadingStates.SETTING_USERNAME);
 		let username = this.auth.getUsername();
 
 		if (!username) {
+			this.ui.showLoadingUI(LoadingStates.SETTING_USERNAME);
 			username = await this.ui.showUsernameSetup();
-			await this.auth.setupUsername(username);
+			if (username) {
+				await this.auth.setupUsername(username);
+			}
 		}
 
 		this.state.setUsername(username);
-		console.log("Auth initialized for user:", username);
+		console.log("Auth fully initialized for user:", username);
 	}
 
 	setupEventListeners() {
@@ -70,7 +70,13 @@ class SpeedCodePopup {
 		this.cleanupFunctions.push(authUnsubscribe);
 
 		this.state.watch("network.isOnline", (isOnline) => {
-			this.ui.showConnectionStatus(isOnline);
+			if (!isOnline) {
+				this.ui.showToast(
+					"📶 Offline - Changes will sync when connected",
+					"warning",
+					5000
+				);
+			}
 		});
 
 		this.state.watch("room.currentRoomId", (roomId) => {
@@ -87,14 +93,21 @@ class SpeedCodePopup {
 				this.ui.updateTimerButton(buttons.timer, timerState.active);
 			}
 		});
+
+		this.state.watch("room.joinedRooms", () => {
+			this.updateAddDropdown();
+		});
 	}
 
 	async initializeMainUI() {
 		try {
+			await this.loadUserRooms();
+
 			const tab = await ChromeUtils.getCurrentTab();
 
 			if (!tab?.url) {
 				this.ui.showStateMessage("noTab", "No Active Tab");
+				this.setupUtilityButtons();
 				return;
 			}
 
@@ -121,8 +134,16 @@ class SpeedCodePopup {
 	async detectAndRenderProblem(tab) {
 		this.ui.showLoadingUI(LoadingStates.DETECTING_PROBLEM);
 		this.state.setProblemDetection(true);
+
 		const joinedRooms = this.state.getState("room.joinedRooms");
 		const username = this.state.getState("user.username");
+
+		if (!username) {
+			console.error("No username available for problem detection");
+			this.ui.showStateMessage("extensionError", "Setup incomplete");
+			this.state.setProblemDetection(false);
+			return;
+		}
 
 		try {
 			const problemData = await ChromeUtils.sendMessageToTab(tab.id, {
@@ -135,11 +156,21 @@ class SpeedCodePopup {
 				problemData?.onProblem &&
 				ValidationUtils.isValidProblemData(problemData)
 			) {
+				this.currentProblemData = problemData;
 				this.state.setCurrentProblem(problemData);
-				this.ui.renderProblemInfo(problemData, joinedRooms, username, (selectedProblemData, bucketId, item) => {
-					this.handleAddToBucket(selectedProblemData, bucketId, item);
-				});
-				this.setupProblemButtons(problemData);
+				this.ui.renderProblemInfo(
+					problemData,
+					joinedRooms,
+					username,
+					(selectedProblemData, bucketId, item) => {
+						this.handleAddToBucket(
+							selectedProblemData,
+							bucketId,
+							item
+						);
+					}
+				);
+				this.setupProblemButtons();
 			} else {
 				this.ui.showStateMessage(
 					"notDetected",
@@ -160,7 +191,7 @@ class SpeedCodePopup {
 		}
 	}
 
-	setupProblemButtons(problemData) {
+	setupProblemButtons() {
 		const buttons = this.ui.getButtons();
 
 		if (buttons.viewBucket) {
@@ -176,10 +207,12 @@ class SpeedCodePopup {
 		}
 
 		if (buttons.timer) {
-			this.setupTimerButton(buttons.timer, problemData);
+			buttons.timer.addEventListener("click", () => {
+				this.handleTimerToggle();
+			});
 		}
 
-		this.loadActiveTimer(buttons.timer, problemData);
+		this.loadActiveTimer();
 	}
 
 	setupUtilityButtons() {
@@ -198,35 +231,14 @@ class SpeedCodePopup {
 		}
 	}
 
-	showToast(message, type = "success", duration = 1500) {
-		const oldToast = document.querySelector('.popup-toast');
-		if (oldToast) oldToast.remove();
-
-		const toast = document.createElement("div");
-		toast.className = `popup-toast ${type}`;
-		toast.textContent = message;
-
-		document.body.appendChild(toast);
-
-		setTimeout(() => toast.classList.add('show'), 10);
-
-		setTimeout(() => {
-			toast.classList.remove('show');
-			setTimeout(() => toast.remove(), 300);
-		}, duration);
-	}
-
 	async handleAddToBucket(problemData, bucketId, buttonElement) {
+		if (!ValidationUtils.isValidProblemData(problemData)) return;
+
 		const button = buttonElement || this.ui.getButtons().addToBucket;
-		if (!button || !ValidationUtils.isValidProblemData(problemData)) return;
-		
-		const originalText = button.textContent;
-		
 		this.ui.showLoading(button, "Adding...");
-		
+
 		try {
 			const username = this.state.getState("user.username");
-
 			const result = await this.database.addProblemToBucket(
 				problemData,
 				bucketId,
@@ -234,22 +246,21 @@ class SpeedCodePopup {
 			);
 
 			if (result.alreadyExists) {
-				this.showToast("✅ Already in bucket", "success");
+				this.ui.showToast("✅ Already in bucket", "success");
 			} else {
 				const message = bucketId
 					? "✅ Added to shared room!"
 					: "✅ Added to bucket!";
-				this.showToast(message, "success");
+				this.ui.showToast(message, "success");
 				this.state.addProblemToBucket(result.problem);
 			}
+
+			this.ui.resetButton(button);
 		} catch (error) {
 			ErrorUtils.logError("handleAddToBucket", error);
-			this.showToast("❌ Failed to add - Try again", "failure");
-		} finally {
-			setTimeout(() => {
-				button.textContent = originalText;
-			}, 1500);
-    	}
+			this.ui.showError(button, "Failed to add");
+			this.ui.showToast("❌ Failed to add - Try again", "error");
+		}
 	}
 
 	async handleToggleBucket() {
@@ -289,37 +300,49 @@ class SpeedCodePopup {
 				const roomName =
 					prompt("Enter room name (optional):") ||
 					`${username}'s Room`;
+
 				roomId = await this.database.createRoom(roomName, username);
-				this.ui.showSuccess(button, `Room ${roomId} created!`);
-			} else {
+				this.ui.showToast(`Room ${roomId} created!`, "success");
+			} else if (result.action === "join") {
 				roomId = await this.database.joinRoom(result.roomId, username);
-				this.ui.showSuccess(button, `Joined room ${roomId}!`);
+				this.ui.showToast(`Joined room ${roomId}!`, "success");
 			}
 
-			this.state.setCurrentRoom(roomId);
-			await this.refreshUserRooms();
+			if (result.modalContent) {
+				this.ui.closeModal(result.modalContent, null, null);
+			}
 
-			setTimeout(() => {
-				const viewBtn = this.ui.getButtons().viewBucket;
-				if (viewBtn && !this.state.getState("ui.isBucketVisible")) {
-					viewBtn.click();
-				}
-			}, 1000);
+			this.ui.resetButton(button);
+
+			if (roomId) {
+				await this.refreshUserRooms();
+				this.updateAddDropdown();
+				this.state.setCurrentRoom(roomId);
+
+				setTimeout(() => {
+					const viewBtn = this.ui.getButtons().viewBucket;
+					if (viewBtn && !this.state.getState("ui.isBucketVisible")) {
+						viewBtn.click();
+					}
+				}, 1000);
+			}
 		} catch (error) {
 			ErrorUtils.logError("handleShare", error);
-			this.ui.showError(button, "Share failed");
+			this.ui.resetButton(button); // Make sure button is reset on error
+			this.ui.showToast("Failed to create/join room", "error");
 		}
 	}
 
-	setupTimerButton(button, problemData) {
-		button.addEventListener("click", () => {
-			this.handleTimerToggle(button, problemData);
-		});
-	}
-
-	async handleTimerToggle(button, problemData) {
+	async handleTimerToggle() {
+		const button = this.ui.getButtons().timer;
 		const timerState = this.state.getState("timer");
-		const currentTitle = problemData.problemTitle;
+
+		if (!this.currentProblemData) {
+			this.ui.showToast("⚠️ No problem detected", "warning");
+			return;
+		}
+
+		const currentTitle = this.currentProblemData.problemTitle;
 
 		if (timerState.active && timerState.problemTitle === currentTitle) {
 			const elapsedSeconds = this.state.stopTimer();
@@ -328,12 +351,16 @@ class SpeedCodePopup {
 			try {
 				await this.saveProblemTime(currentTitle, timeString);
 				this.ui.showSuccess(button, "Time saved!");
+				this.ui.showToast(`⏱️ Time saved: ${timeString}`, "success");
 			} catch (error) {
 				ErrorUtils.logError("handleTimerToggle", error);
-				this.ui.showError(button, "Failed to save time");
+				this.ui.showError(button, "Failed to save");
+				this.ui.showToast("❌ Failed to save time", "error");
 			}
 		} else {
+			// Start timer
 			this.state.startTimer(currentTitle);
+			this.ui.showToast(`⏱️ Timer started for ${currentTitle}`, "info");
 		}
 	}
 
@@ -343,21 +370,24 @@ class SpeedCodePopup {
 
 		await this.database.addProblemTime(
 			problemTitle,
-			{
-				time: timeString,
-				username: username,
-			},
+			{ time: timeString, username },
 			currentRoomId
 		);
 	}
 
-	async loadActiveTimer(button, problemData) {
-		if (!button || !problemData) return;
+	async loadActiveTimer() {
+		if (!this.currentProblemData) return;
 
 		const timerLoaded = await this.state.loadTimerFromStorage();
 		if (timerLoaded) {
 			const timerState = this.state.getState("timer");
-			if (timerState.problemTitle === problemData.problemTitle) {
+			const button = this.ui.getButtons().timer;
+
+			if (
+				timerState.problemTitle ===
+					this.currentProblemData.problemTitle &&
+				button
+			) {
 				this.ui.updateTimerButton(button, true);
 			}
 		}
@@ -368,24 +398,46 @@ class SpeedCodePopup {
 
 		try {
 			await this.refreshUserRooms();
-
 			await this.renderBucketWithSelector();
 		} catch (error) {
 			ErrorUtils.logError("loadAndRenderBucket", error);
 			this.ui.elements.bucketList.innerHTML = `
-				<div style="color: #ef4444; text-align: center; padding: 20px;">
-					<div>❌ Failed to load bucket</div>
-					<div style="font-size: 12px; margin-top: 8px;">
-						Check your connection and try again
-					</div>
+				<div class="status-message error">
+					<div class="status-icon">❌</div>
+					<div class="status-title">Failed to load bucket</div>
+					<div class="status-subtitle">Check your connection and try again</div>
 				</div>
 			`;
+		}
+	}
+
+	async loadUserRooms() {
+		try {
+			const joinedRooms = await this.database.getUserRooms();
+			this.state.setJoinedRooms(joinedRooms);
+			this.ui.updateJoinedRooms(joinedRooms);
+		} catch (error) {
+			ErrorUtils.logError("loadUserRooms", error);
 		}
 	}
 
 	async refreshUserRooms() {
 		const joinedRooms = await this.database.getUserRooms();
 		this.state.setJoinedRooms(joinedRooms);
+		this.ui.updateJoinedRooms(joinedRooms);
+	}
+
+	updateAddDropdown() {
+		if (!this.currentProblemData) return;
+
+		const username = this.state.getState("user.username");
+		this.ui.refreshAddDropdown(
+			this.currentProblemData,
+			username,
+			(selectedProblemData, bucketId, item) => {
+				this.handleAddToBucket(selectedProblemData, bucketId, item);
+			}
+		);
 	}
 
 	async renderBucketWithSelector() {
@@ -395,14 +447,14 @@ class SpeedCodePopup {
 
 		try {
 			let problems = [];
-			let roomData = null;
 
 			if (currentRoomId) {
 				this.database.listenToBucket(
 					currentRoomId,
 					(bucketProblems, data) => {
 						this.state.setBucketProblems(bucketProblems);
-						this.displayProblems(bucketProblems, data);
+						this.ui.displayProblems(bucketProblems, currentRoomId);
+						this.setupRemoveButtons();
 					}
 				);
 			} else {
@@ -412,7 +464,7 @@ class SpeedCodePopup {
 
 			this.ui.renderBucketList(
 				problems,
-				roomData?.name,
+				null,
 				currentRoomId,
 				joinedRooms,
 				username
@@ -422,12 +474,10 @@ class SpeedCodePopup {
 				this.handleRoomChange(newRoomId);
 			});
 
-			this.ui.onRemoveButtonClick(async (index) => {
-				await this.handleRemoveProblem(index);
-			});
+			this.setupRemoveButtons();
 
 			if (!currentRoomId) {
-				this.displayProblems(problems);
+				this.ui.displayProblems(problems, currentRoomId);
 			}
 		} catch (error) {
 			ErrorUtils.logError("renderBucketWithSelector", error);
@@ -435,10 +485,7 @@ class SpeedCodePopup {
 		}
 	}
 
-	displayProblems(problems, roomData = null) {
-		const currentRoomId = this.state.getState("room.currentRoomId");
-		this.ui.displayProblems(problems, currentRoomId);
-
+	setupRemoveButtons() {
 		this.ui.onRemoveButtonClick(async (index) => {
 			await this.handleRemoveProblem(index);
 		});
@@ -446,11 +493,13 @@ class SpeedCodePopup {
 
 	async handleRoomChange(newRoomId) {
 		const oldRoomId = this.state.getState("room.currentRoomId");
+		if (oldRoomId === newRoomId) return;
+
 		if (oldRoomId) {
 			this.database.removeListener(`bucket_${oldRoomId}`);
 		}
 
-		this.state.setCurrentRoom(newRoomId);
+		this.state.setState("room.currentRoomId", newRoomId, true);
 
 		await this.renderBucketWithSelector();
 	}
@@ -458,12 +507,20 @@ class SpeedCodePopup {
 	async handleRemoveProblem(index) {
 		const currentRoomId = this.state.getState("room.currentRoomId");
 
-		await this.database.removeProblemFromBucket(index, currentRoomId);
+		try {
+			await this.database.removeProblemFromBucket(index, currentRoomId);
 
-		if (!currentRoomId) {
-			this.state.removeProblemFromBucket(index);
-			const problems = this.state.getState("bucket.problems");
-			this.displayProblems(problems);
+			if (!currentRoomId) {
+				this.state.removeProblemFromBucket(index);
+				const problems = this.state.getState("bucket.problems");
+				this.ui.displayProblems(problems, currentRoomId);
+				this.setupRemoveButtons();
+			}
+
+			this.ui.showToast("✅ Problem removed", "success");
+		} catch (error) {
+			ErrorUtils.logError("handleRemoveProblem", error);
+			this.ui.showToast("❌ Failed to remove problem", "error");
 		}
 	}
 
@@ -472,26 +529,21 @@ class SpeedCodePopup {
 
 		setTimeout(() => {
 			const problemInfo = this.ui.elements.problemInfo;
-			const retryDiv = document.createElement("div");
-			retryDiv.style.cssText = "margin-top: 16px;";
+			const retryContainer = document.createElement("div");
+			retryContainer.style.cssText =
+				"text-align: center; margin-top: 20px;";
 
 			const retryBtn = document.createElement("button");
-			retryBtn.style.cssText = `
-				background: #3b82f6; 
-				color: white; 
-				border: none; 
-				padding: 8px 16px; 
-				border-radius: 6px; 
-				cursor: pointer; 
-				font-size: 12px;
-			`;
+			retryBtn.className = "modal-btn primary";
+			retryBtn.style.cssText =
+				"width: auto; padding: 8px 16px; font-size: 12px;";
 			retryBtn.textContent = "Retry";
 			retryBtn.addEventListener("click", () => {
 				window.location.reload();
 			});
 
-			retryDiv.appendChild(retryBtn);
-			problemInfo.appendChild(retryDiv);
+			retryContainer.appendChild(retryBtn);
+			problemInfo.appendChild(retryContainer);
 		}, 1000);
 	}
 
@@ -504,6 +556,7 @@ class SpeedCodePopup {
 			}
 		});
 
+		this.ui.cleanup();
 		this.database.cleanup();
 		this.auth.cleanup();
 		this.state.cleanup();
@@ -520,7 +573,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 		popup.cleanup();
 	});
 
-	await popup.initialize();
+	try {
+		await popup.initialize();
+	} catch (error) {
+		console.error("Failed to initialize popup:", error);
+	}
 
 	window.speedCodePopup = popup;
 });

@@ -10,15 +10,22 @@ export class UIManager {
 	constructor() {
 		this.elements = {};
 		this.modals = new Map();
+		this.currentJoinedRooms = [];
+		this.dropdownCleanups = new Set();
+		this.isDropdownOpen = false;
 		this.init();
 	}
 
 	init() {
+		this.elements.header = document.getElementById("header");
+		this.elements.mainContent = document.getElementById("mainContent");
 		this.elements.problemInfo = document.getElementById("problemInfo");
+		this.elements.quickActions = document.getElementById("quickActions");
+		this.elements.bucketContainer =
+			document.getElementById("bucketContainer");
+		this.elements.roomSelector = document.getElementById("roomSelector");
 		this.elements.bucketList = document.getElementById("bucketList");
-		this.elements.bucketListContainer = document.getElementById(
-			"bucketListContainer"
-		);
+		this.elements.addDropdown = document.getElementById("addDropdown");
 
 		AnimationUtils.addLoadingStyles();
 	}
@@ -29,7 +36,7 @@ export class UIManager {
 				icon: "🚀",
 				title: "Starting SpeedCode...",
 				subtitle: "Initializing extension",
-				color: "#3b82f6",
+				color: "#6366f1",
 			},
 			[LoadingStates.AUTHENTICATING]: {
 				icon: "🔐",
@@ -61,61 +68,150 @@ export class UIManager {
 			stateConfig[state] || stateConfig[LoadingStates.INITIALIZING];
 
 		this.elements.problemInfo.innerHTML = `
-			<div style="text-align: center; padding: 32px 24px;">
-				<div style="font-size: 32px; margin-bottom: 16px; animation: bounce 2s infinite;">
-					${config.icon}
-				</div>
-				<div style="color: white; font-size: 16px; font-weight: 600; margin-bottom: 8px;">
-					${config.title}
-				</div>
-				<div style="color: #6b7280; font-size: 13px; margin-bottom: 20px;">
-					${config.subtitle}
-				</div>
-				<div style="width: 100%; height: 3px; background: #333; border-radius: 2px; overflow: hidden;">
-					<div style="
-						width: 100%; 
-						height: 100%; 
-						background: linear-gradient(90deg, ${config.color}, ${config.color}aa);
-						animation: loading 2s ease-in-out infinite;
-						border-radius: 2px;
-					"></div>
+			<div class="loading-container">
+				<div class="loading-icon">${config.icon}</div>
+				<div class="loading-title">${config.title}</div>
+				<div class="loading-subtitle">${config.subtitle}</div>
+				<div class="loading-bar">
+					<div class="loading-bar-fill" style="background: linear-gradient(90deg, ${config.color}, ${config.color}88, ${config.color});"></div>
 				</div>
 			</div>
 		`;
+		this.elements.quickActions.style.display = "none";
+	}
+
+	updateJoinedRooms(rooms) {
+		this.currentJoinedRooms = rooms || [];
 	}
 
 	renderProblemInfo(problemData, joinedRooms, username, addToBucketCallback) {
-		let infoHTML = `<div class="info-header speedcode-fade-in">`;
+		this.updateJoinedRooms(joinedRooms);
 
+		let headerHTML = "";
 		if (problemData.problemNumber) {
-			infoHTML += `<div class="problem-number">#${problemData.problemNumber}</div>`;
+			headerHTML = `
+				<div class="problem-header fade-in">
+					<div class="problem-number">#${problemData.problemNumber}</div>
+				</div>
+			`;
 		}
 
-		infoHTML += `<div class="button-group">`;
-		//add button is slotted in dynamically by createAddToBucketDropdown
-		infoHTML += `<button id="viewBucketBtn" class="bucket-btn">👁️ View</button>`;
-		infoHTML += `<button id="shareBtn" class="bucket-btn">🔗 Share</button>`;
-		infoHTML += `<button id="startTimerBtn" class="bucket-btn">⏱️ Timer</button>`;
-		infoHTML += `</div></div>`;
-
+		let titleHTML = "";
 		if (problemData.problemTitle) {
-			infoHTML += `<div class="problem-title speedcode-fade-in" style="animation-delay: 0.1s;">${problemData.problemTitle}</div>`;
+			titleHTML = `<div class="problem-title fade-in">${problemData.problemTitle}</div>`;
 		}
 
+		let difficultyHTML = "";
 		if (problemData.difficulty) {
-			infoHTML += `<div class="difficulty difficulty-${problemData.difficulty.toLowerCase()} speedcode-fade-in" style="animation-delay: 0.2s;">${
-				problemData.difficulty
-			}</div>`;
+			difficultyHTML = `
+				<div class="difficulty ${problemData.difficulty.toLowerCase()} fade-in">
+					${problemData.difficulty}
+				</div>
+			`;
 		}
 
-		this.elements.problemInfo.innerHTML = infoHTML;
-		const dropdown = this.createAddToBucketDropdown(
+		this.elements.problemInfo.innerHTML =
+			headerHTML + titleHTML + difficultyHTML;
+
+		this.elements.quickActions.style.display = "flex";
+		this.setupAddToBucketDropdown(
 			problemData,
-			joinedRooms,
 			username,
 			addToBucketCallback
 		);
-		this.elements.problemInfo.querySelector(".button-group").prepend(dropdown);
+	}
+
+	setupAddToBucketDropdown(problemData, username, callback) {
+		const addBtn = document.getElementById("addToBucketBtn");
+		const dropdown = this.elements.addDropdown;
+
+		dropdown.innerHTML = "";
+
+		const personalOption = this.createDropdownItem(
+			"📝",
+			`${username}'s Personal Bucket`,
+			() => {
+				callback(problemData, "", addBtn);
+				this.hideDropdown();
+			}
+		);
+		dropdown.appendChild(personalOption);
+
+		if (this.currentJoinedRooms.length > 0) {
+			const separator = document.createElement("div");
+			separator.className = "dropdown-separator";
+			dropdown.appendChild(separator);
+
+			this.currentJoinedRooms.forEach((room) => {
+				if (room && room.id) {
+					const roomOption = this.createDropdownItem(
+						"🏠",
+						`${room.name} (${room.id})`,
+						() => {
+							callback(problemData, room.id, addBtn);
+							this.hideDropdown();
+						}
+					);
+					dropdown.appendChild(roomOption);
+				}
+			});
+		}
+
+		addBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			this.toggleDropdown(addBtn);
+		});
+
+		document.addEventListener("click", (e) => {
+			if (!addBtn.contains(e.target) && !dropdown.contains(e.target)) {
+				this.hideDropdown();
+			}
+		});
+	}
+
+	createDropdownItem(icon, text, onClick) {
+		const item = document.createElement("button");
+		item.className = "dropdown-item";
+		item.innerHTML = `
+			<span class="icon">${icon}</span>
+			<span class="text">${text}</span>
+		`;
+		item.addEventListener("click", onClick);
+		return item;
+	}
+
+	toggleDropdown(button) {
+		const dropdown = this.elements.addDropdown;
+		const rect = button.getBoundingClientRect();
+		const containerRect =
+			this.elements.quickActions.getBoundingClientRect();
+
+		if (this.isDropdownOpen) {
+			this.hideDropdown();
+		} else {
+			dropdown.style.position = "absolute";
+			dropdown.style.top = `${rect.bottom - containerRect.top + 4}px`;
+			dropdown.style.left = `${rect.left - containerRect.left}px`;
+			dropdown.style.width = `${rect.width}px`;
+			dropdown.style.display = "block";
+			this.isDropdownOpen = true;
+		}
+	}
+
+	hideDropdown() {
+		this.elements.addDropdown.style.display = "none";
+		this.isDropdownOpen = false;
+	}
+
+	refreshAddDropdown(problemData, username, addToBucketCallback) {
+		if (this.isDropdownOpen) {
+			this.hideDropdown();
+		}
+		this.setupAddToBucketDropdown(
+			problemData,
+			username,
+			addToBucketCallback
+		);
 	}
 
 	renderBucketList(
@@ -125,207 +221,72 @@ export class UIManager {
 		joinedRooms = [],
 		currentUsername = ""
 	) {
-		this.elements.bucketList.innerHTML = `
-			<div style="color: #6b7280; text-align: center; padding: 20px;">
-				⏳ Loading bucket...
-			</div>
-		`;
+		this.updateJoinedRooms(joinedRooms);
 
 		if (joinedRooms.length > 0) {
-			const roomSelector = this.createRoomSelector(
-				joinedRooms,
-				currentRoomId,
-				currentUsername
-			);
-			this.elements.bucketList.innerHTML = "";
-			this.elements.bucketList.appendChild(roomSelector);
+			this.setupRoomSelector(joinedRooms, currentRoomId, currentUsername);
+			this.elements.roomSelector.style.display = "block";
+		} else {
+			this.elements.roomSelector.style.display = "none";
 		}
 
 		if (problems.length === 0) {
 			this.showEmptyBucket(currentRoomId);
-			return;
+		} else {
+			this.displayProblems(problems, currentRoomId);
 		}
-
-		this.displayProblems(problems, currentRoomId);
 	}
 
-	createRoomSelector(joinedRooms, currentRoomId, currentUsername) {
-		const roomSelector = DOMUtils.createElement(
-			"div",
-			`
-			margin-bottom: 16px; 
-			padding: 12px; 
-			background: #333; 
-			border-radius: 8px;
-		`
-		);
-
-		const select = DOMUtils.createElement(
-			"select",
-			`
-			width: 100%; 
-			padding: 8px; 
-			background: #1a1a1a; 
-			color: white; 
-			border: 1px solid #555; 
-			border-radius: 4px;
-		`
-		);
+	setupRoomSelector(joinedRooms, currentRoomId, currentUsername) {
+		const select = document.getElementById("roomSelect");
+		select.innerHTML = "";
 
 		const personalOption = document.createElement("option");
 		personalOption.value = "";
 		personalOption.textContent = `📝 ${currentUsername}'s Personal Bucket`;
 		select.appendChild(personalOption);
 
-		joinedRooms.forEach((roomData) => {
-			if (roomData && roomData.id) {
+		joinedRooms.forEach((room) => {
+			if (room && room.id) {
 				const option = document.createElement("option");
-				option.value = roomData.id;
-				option.textContent = `🏠 ${roomData.name} (${roomData.id})`;
-				if (roomData.id === currentRoomId) option.selected = true;
+				option.value = room.id;
+				option.textContent = `🏠 ${room.name} (${room.id})`;
+				if (room.id === currentRoomId) {
+					option.selected = true;
+				}
 				select.appendChild(option);
 			}
 		});
-
-		roomSelector.appendChild(select);
-		return roomSelector;
 	}
 
 	showEmptyBucket(currentRoomId) {
-		const existingSelector = this.elements.bucketList.querySelector(
-			'div[style*="margin-bottom: 16px"]'
-		);
-
-		const emptyDiv = DOMUtils.createElement(
-			"div",
-			"color: #6b7280; text-align: center; padding: 20px;",
-			`
-				<div>📝 No problems saved yet</div>
-				<div style="font-size: 12px; margin-top: 8px;">
+		this.elements.bucketList.innerHTML = `
+			<div class="empty-state">
+				<div class="empty-state-icon">📝</div>
+				<div class="empty-state-title">No problems saved yet</div>
+				<div class="empty-state-subtitle">
 					${
 						currentRoomId
 							? "Add problems to share with room members"
 							: "Add problems from LeetCode to track them here"
 					}
 				</div>
-			`
-		);
-
-		if (existingSelector) {
-			this.elements.bucketList.insertBefore(
-				emptyDiv,
-				existingSelector.nextSibling
-			);
-		} else {
-			this.elements.bucketList.appendChild(emptyDiv);
-		}
-	}
-
-	createAddToBucketDropdown(problemData, joinedRooms, username, callback) {
-		const container = document.createElement("div");
-		container.style.position = "relative";
-		container.style.display = "inline-block";
-
-		const mainButton = document.createElement("button");
-		mainButton.className = "bucket-btn";
-		mainButton.textContent = "🪣 Add ▾";
-		mainButton.id = "addToBucketBtn";
-
-		const list = document.createElement("div");
-		Object.assign(list.style, {
-			display: "none",
-			position: "absolute",
-			top: "calc(100% + 4px)",
-			left: "0",
-			background: "var(--color-surface-elevated)",
-			border: "1px solid var(--color-border)",
-			borderRadius: "var(--radius-sm)",
-			boxShadow: "var(--shadow-md)",
-			minWidth: "160px",
-			zIndex: "1000",
-			overflow: "hidden"
-		});
-
-		const addOption = (text, bucketId) => {
-			const item = document.createElement("div");
-			Object.assign(item.style, {
-				padding: "var(--space-sm) var(--space-md)",
-				cursor: "pointer",
-				fontSize: "var(--font-size-sm)",
-				color: "var(--color-text-primary)",
-				background: "var(--color-surface-elevated)",
-				transition: "background 0.2s ease"
-			});
-			item.textContent = text;
-			item.addEventListener("mouseover", () => {
-				item.style.background = "var(--color-surface-hover)";
-			});
-			item.addEventListener("mouseout", () => {
-				item.style.background = "var(--color-surface-elevated)";
-			});
-			item.addEventListener("click", () => {
-				callback(problemData, bucketId, item);
-				list.style.display = "none";
-			});
-			list.appendChild(item);
-		};
-
-		// Personal bucket
-		addOption(`📝 ${username}'s Personal Bucket`, "");
-
-		// Shared buckets
-		joinedRooms.forEach(room => {
-			if (room && room.id) {
-				addOption(`🏠 ${room.name} (${room.id})`, room.id);
-			}
-		});
-
-		mainButton.addEventListener("click", (e) => {
-			e.stopPropagation();
-			list.style.display = (list.style.display === "block") ? "none" : "block";
-		});
-
-		document.addEventListener("click", () => {
-			list.style.display = "none";
-		});
-
-		container.appendChild(mainButton);
-		container.appendChild(list);
-
-		return container;
+			</div>
+		`;
 	}
 
 	displayProblems(problems, currentRoomId) {
-		const existingSelector = this.elements.bucketList.querySelector(
-			'div[style*="margin-bottom: 16px"]'
-		);
-		const problemsContainer = document.createElement("div");
+		this.elements.bucketList.innerHTML = "";
 
 		problems.forEach((problem, index) => {
 			const item = this.createProblemItem(problem, index, currentRoomId);
-			problemsContainer.appendChild(item);
+			this.elements.bucketList.appendChild(item);
 		});
-
-		if (existingSelector) {
-			const existingProblems = this.elements.bucketList.children;
-			for (let i = existingProblems.length - 1; i >= 0; i--) {
-				if (existingProblems[i] !== existingSelector) {
-					this.elements.bucketList.removeChild(existingProblems[i]);
-				}
-			}
-			this.elements.bucketList.insertBefore(
-				problemsContainer,
-				existingSelector.nextSibling
-			);
-		} else {
-			this.elements.bucketList.innerHTML = "";
-			this.elements.bucketList.appendChild(problemsContainer);
-		}
 	}
 
 	createProblemItem(problem, index, currentRoomId) {
 		const item = document.createElement("div");
-		item.className = "bucket-item";
+		item.className = "bucket-item fade-in";
 
 		const problemNumber = problem.problemNumber || "?";
 		const problemTitle = problem.problemTitle || "Unknown Problem";
@@ -334,7 +295,15 @@ export class UIManager {
 		const addedBy = problem.addedBy || "Unknown";
 		const times = Array.isArray(problem.times) ? problem.times : [];
 
-		let timesDisplay = "";
+		let metaHTML = `<span>#${problemNumber}</span>`;
+		if (difficulty) {
+			metaHTML += `<span class="bucket-item-difficulty ${difficulty}">${difficulty}</span>`;
+		}
+		if (currentRoomId && addedBy) {
+			metaHTML += `<span>by ${addedBy}</span>`;
+		}
+
+		let timesHTML = "";
 		if (times.length > 0) {
 			const timesList = times
 				.map((t) => {
@@ -347,65 +316,53 @@ export class UIManager {
 					}
 				})
 				.join(", ");
-			timesDisplay = `<div style="font-size: 10px; color: #888; margin-top: 4px;">Times: ${timesList}</div>`;
+			timesHTML = `<div class="bucket-item-times">Times: ${timesList}</div>`;
 		}
 
 		item.innerHTML = `
-			<div style="flex: 1;">
-				<a href="${url}" target="_blank" style="text-decoration: none; color: inherit;">
-					<span class="bucket-difficulty-${difficulty}">
-						#${problemNumber}: ${problemTitle}
-					</span>
+			<div class="bucket-item-content">
+				<a href="${url}" target="_blank" class="bucket-item-title">
+					${problemTitle}
 				</a>
-				${
-					currentRoomId
-						? `<div style="font-size: 10px; color: #888; margin-top: 2px;">Added by: ${addedBy}</div>`
-						: ""
-				}
-				${timesDisplay}
+				<div class="bucket-item-meta">${metaHTML}</div>
+				${timesHTML}
 			</div>
-			<button data-index="${index}" class="remove-button" title="Remove from bucket">❌</button>
+			<button class="remove-btn" data-index="${index}" title="Remove from bucket">
+				✕
+			</button>
 		`;
 
 		return item;
 	}
 
 	showStateMessage(type, message, hasUtilityButtons = false) {
-		const icons = {
-			noTab: "🔍",
-			notLeetCode: "🎯",
-			notDetected: "⚠️",
-			connectionError: "⚠️",
-			extensionError: "❌",
+		const stateConfig = {
+			noTab: { icon: "🔍", class: "info" },
+			notLeetCode: { icon: "🎯", class: "info" },
+			notDetected: { icon: "⚠️", class: "warning" },
+			connectionError: { icon: "⚠️", class: "warning" },
+			extensionError: { icon: "❌", class: "error" },
 		};
 
-		const colors = {
-			noTab: "#6b7280",
-			notLeetCode: "#6b7280",
-			notDetected: "#f59e0b",
-			connectionError: "#f59e0b",
-			extensionError: "#ef4444",
-		};
-
-		let buttonsHTML = "";
-		if (hasUtilityButtons) {
-			buttonsHTML = `
-				<div style="margin-top: 12px; display: flex; gap: 8px;">
-					<button id="viewBucketBtn" class="bucket-btn">👁️ View</button>
-					<button id="shareBtn" class="bucket-btn">🔗 Share</button>
-				</div>
-			`;
-		}
+		const config = stateConfig[type] || stateConfig.extensionError;
 
 		this.elements.problemInfo.innerHTML = `
-			<div style="color: ${colors[type]}; text-align: center; padding: 20px;">
-				<div>${icons[type]} ${message}</div>
-				<div style="font-size: 12px; margin-top: 8px;">
-					${this.getSubMessage(type)}
-				</div>
-				${buttonsHTML}
+			<div class="status-message ${config.class}">
+				<div class="status-icon">${config.icon}</div>
+				<div class="status-title">${message}</div>
+				<div class="status-subtitle">${this.getSubMessage(type)}</div>
 			</div>
 		`;
+
+		if (hasUtilityButtons) {
+			this.elements.quickActions.style.display = "flex";
+			const addBtn = document.getElementById("addToBucketBtn");
+			if (addBtn) {
+				addBtn.style.display = "none";
+			}
+		} else {
+			this.elements.quickActions.style.display = "none";
+		}
 	}
 
 	getSubMessage(type) {
@@ -442,23 +399,11 @@ export class UIManager {
 	}
 
 	createModal(type, options) {
-		const modal = DOMUtils.createElement(
-			"div",
-			`
-			position: fixed;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			background: rgba(0,0,0,0.9);
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			z-index: 10000;
-			backdrop-filter: blur(8px);
-		`
-		);
-		modal.className = "speedcode-fade-in";
+		const overlay = document.createElement("div");
+		overlay.className = "modal-overlay";
+
+		const modal = document.createElement("div");
+		modal.className = "modal-content";
 
 		if (type === "username") {
 			modal.appendChild(this.createUsernameModalContent(options));
@@ -466,73 +411,42 @@ export class UIManager {
 			modal.appendChild(this.createShareModalContent(options));
 		}
 
-		modal.addEventListener("click", (e) => {
-			if (e.target === modal) {
-				this.closeModal(modal, options.onSubmit, null);
+		overlay.appendChild(modal);
+
+		overlay.addEventListener("click", (e) => {
+			if (e.target === overlay) {
+				this.closeModal(overlay, options.onSubmit, null);
 			}
 		});
 
-		this.modals.set(type, modal);
-		return modal;
+		this.modals.set(type, overlay);
+		return overlay;
 	}
 
 	createUsernameModalContent(options) {
-		const content = DOMUtils.createElement(
-			"div",
-			`
-			background: #1a1a1a; 
-			padding: 32px; 
-			border-radius: 16px; 
-			width: 320px; 
-			text-align: center; 
-			border: 1px solid #333;
-		`
-		);
-		content.className = "speedcode-fade-in";
-
+		const content = document.createElement("div");
 		content.innerHTML = `
-			<div style="font-size: 40px; margin-bottom: 16px;">👋</div>
-			<h3 style="color: white; margin: 0 0 8px 0; font-size: 20px;">${options.title}</h3>
-			<p style="color: #6b7280; margin: 0 0 24px 0; font-size: 14px; line-height: 1.5;">
-				${options.subtitle}
-			</p>
-			<input 
-				type="text" 
-				id="usernameInput" 
-				placeholder="Enter your username..."
-				style="
-					width: 100%; 
-					padding: 14px; 
-					border: 2px solid #333; 
-					border-radius: 8px; 
-					background: #333; 
-					color: white; 
-					font-size: 16px; 
-					margin-bottom: 20px;
-					box-sizing: border-box;
-					transition: border-color 0.2s ease;
-				"
-				maxlength="20"
-			>
-			<button 
-				id="saveUsernameBtn"
-				style="
-					background: linear-gradient(135deg, #10b981, #059669); 
-					color: white; 
-					border: none; 
-					padding: 14px 28px; 
-					border-radius: 8px; 
-					cursor: pointer; 
-					font-weight: 600; 
-					width: 100%;
-					font-size: 16px;
-					transition: transform 0.2s ease;
-				"
-			>
-				Get Started
-			</button>
-			<div style="color: #6b7280; font-size: 12px; margin-top: 12px;">
-				No registration required • You can change this later
+			<div class="modal-header">
+				<div class="modal-icon">👋</div>
+				<div class="modal-title">${options.title}</div>
+				<div class="modal-subtitle">${options.subtitle}</div>
+			</div>
+			<div class="modal-body">
+				<input 
+					type="text" 
+					id="usernameInput" 
+					class="modal-input"
+					placeholder="Enter your username..."
+					maxlength="20"
+				>
+			</div>
+			<div class="modal-buttons">
+				<button id="saveUsernameBtn" class="modal-btn primary">
+					Get Started
+				</button>
+				<div style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 12px;">
+					No registration required • You can change this later
+				</div>
 			</div>
 		`;
 
@@ -541,100 +455,38 @@ export class UIManager {
 	}
 
 	createShareModalContent(options) {
-		const content = DOMUtils.createElement(
-			"div",
-			`
-			background: #1a1a1a; 
-			padding: 20px; 
-			border-radius: 12px; 
-			width: 100%;
-			max-width: 280px;
-			max-height: 90vh;
-			text-align: center;
-			border: 1px solid #333;
-			overflow-y: auto;
-			margin: auto;
-		`
-		);
-
+		const content = document.createElement("div");
 		content.innerHTML = `
-			<h3 style="color: white; margin: 0 0 16px 0; font-size: 18px;">${options.title}</h3>
-			
-			<button 
-				id="createRoomBtn"
-				style="
-					background: #10b981; 
-					color: white; 
-					border: none; 
-					padding: 10px 20px; 
-					border-radius: 6px; 
-					cursor: pointer; 
-					font-weight: 600; 
-					width: 100%; 
-					margin-bottom: 12px;
-					font-size: 14px;
-				"
-			>
-				🏠 Create New Room
-			</button>
-			
-			<div style="display: flex; align-items: center; margin: 14px 0;">
-				<div style="flex: 1; height: 1px; background: #333;"></div>
-				<span style="color: #6b7280; margin: 0 10px; font-size: 11px;">OR</span>
-				<div style="flex: 1; height: 1px; background: #333;"></div>
+			<div class="modal-header">
+				<div class="modal-icon">🔗</div>
+				<div class="modal-title">${options.title}</div>
 			</div>
-			
-			<input 
-				type="text" 
-				id="roomIdInput" 
-				placeholder="Enter Room ID..."
-				style="
-					width: 100%; 
-					padding: 10px; 
-					border: 1px solid #333; 
-					border-radius: 6px; 
-					background: #333; 
-					color: white; 
-					font-size: 13px; 
-					margin-bottom: 12px; 
-					text-transform: uppercase;
-					box-sizing: border-box;
-				"
-				maxlength="6"
-			>
-			
-			<button 
-				id="joinRoomBtn"
-				style="
-					background: #3b82f6; 
-					color: white; 
-					border: none; 
-					padding: 10px 20px; 
-					border-radius: 6px; 
-					cursor: pointer; 
-					font-weight: 600; 
-					width: 100%; 
-					margin-bottom: 14px;
-					font-size: 14px;
-				"
-			>
-				🚪 Join Room
-			</button>
-			
-			<button 
-				id="cancelBtn"
-				style="
-					background: #6b7280; 
-					color: white; 
-					border: none; 
-					padding: 6px 14px; 
-					border-radius: 6px; 
-					cursor: pointer; 
-					font-size: 12px;
-				"
-			>
-				Cancel
-			</button>
+			<div class="modal-body">
+				<div class="modal-buttons">
+					<button id="createRoomBtn" class="modal-btn primary">
+						🏠 Create New Room
+					</button>
+					<div class="modal-divider">
+						<span>or</span>
+					</div>
+					<input 
+						type="text" 
+						id="roomIdInput" 
+						class="modal-input"
+						placeholder="Enter Room ID..."
+						maxlength="6"
+						style="text-transform: uppercase;"
+					>
+					<button id="joinRoomBtn" class="modal-btn secondary">
+						🚪 Join Room
+					</button>
+				</div>
+			</div>
+			<div style="text-align: center; margin-top: 20px;">
+				<button id="cancelBtn" class="modal-btn secondary" style="width: auto; padding: 8px 16px; font-size: 12px;">
+					Cancel
+				</button>
+			</div>
 		`;
 
 		this.setupShareModalEvents(content, options);
@@ -651,36 +503,21 @@ export class UIManager {
 			const username = input.value.trim();
 			const isValid = ValidationUtils.isValidUsername(username);
 
-			input.style.borderColor = isValid ? "#10b981" : "#333";
 			saveBtn.disabled = !isValid;
-			saveBtn.style.opacity = isValid ? "1" : "0.6";
-		});
-
-		input.addEventListener(
-			"focus",
-			() => (input.style.borderColor = "#10b981")
-		);
-		input.addEventListener("blur", () => {
-			if (!ValidationUtils.isValidUsername(input.value.trim())) {
-				input.style.borderColor = "#333";
+			if (isValid) {
+				input.style.borderColor = "var(--primary-color)";
+			} else {
+				input.style.borderColor = "var(--border-color)";
 			}
-		});
-
-		saveBtn.addEventListener("mouseenter", () => {
-			if (!saveBtn.disabled) saveBtn.style.transform = "translateY(-1px)";
-		});
-		saveBtn.addEventListener("mouseleave", () => {
-			if (!saveBtn.disabled) saveBtn.style.transform = "translateY(0)";
 		});
 
 		const handleSubmit = () => {
 			const username = input.value.trim();
 			if (!ValidationUtils.isValidUsername(username)) {
-				input.style.borderColor = "#ef4444";
+				input.style.borderColor = "var(--error-color)";
 				input.placeholder = "Username must be at least 2 characters";
 				return;
 			}
-
 			this.handleUsernameSubmit(
 				saveBtn,
 				input,
@@ -705,72 +542,91 @@ export class UIManager {
 			e.target.value = e.target.value
 				.toUpperCase()
 				.replace(/[^A-Z0-9]/g, "");
+			const isValid = ValidationUtils.isValidRoomId(e.target.value);
+			joinBtn.disabled = !isValid;
 		});
 
 		createBtn.addEventListener("click", () => {
-			this.handleRoomCreate(createBtn, options.onSubmit);
+			this.handleRoomAction(
+				createBtn,
+				"create",
+				null,
+				options.onSubmit,
+				content
+			);
 		});
 
 		joinBtn.addEventListener("click", () => {
-			this.handleRoomJoin(joinBtn, roomInput, options.onSubmit);
+			const roomId = roomInput.value.trim();
+			if (!ValidationUtils.isValidRoomId(roomId)) {
+				roomInput.style.borderColor = "var(--error-color)";
+				return;
+			}
+			this.handleRoomAction(
+				joinBtn,
+				"join",
+				roomId,
+				options.onSubmit,
+				content
+			);
 		});
 
 		cancelBtn.addEventListener("click", () => {
 			this.closeModal(
-				content.closest(".speedcode-fade-in"),
+				content.closest(".modal-overlay"),
 				options.onSubmit,
 				null
 			);
 		});
 	}
 
-	async handleUsernameSubmit(button, input, username, callback) {
+	handleUsernameSubmit(button, input, username, callback) {
 		button.disabled = true;
 		button.innerHTML = "⏳ Setting up...";
-		button.style.transform = "translateY(0)";
 
 		try {
-			callback(username);
+			const modal = button.closest(".modal-overlay");
+			this.closeModal(modal, callback, username);
 		} catch (error) {
 			console.error("Error in username submit:", error);
 			button.disabled = false;
 			button.innerHTML = "Get Started";
-			input.style.borderColor = "#ef4444";
-
-			const errorDiv = DOMUtils.createElement(
-				"div",
-				"color: #ef4444; font-size: 12px; margin-top: 8px;",
-				"Failed to save username. Please try again."
+			input.style.borderColor = "var(--error-color)";
+			this.showToast(
+				"Failed to save username. Please try again.",
+				"error"
 			);
-			button.parentNode.insertBefore(errorDiv, button.nextSibling);
-			setTimeout(() => errorDiv.remove(), 3000);
 		}
 	}
 
-	handleRoomCreate(button, callback) {
+	handleRoomAction(button, action, roomId, callback, modalContent) {
 		button.disabled = true;
-		button.textContent = "Creating...";
-		callback({ action: "create" });
-	}
+		button.textContent = action === "create" ? "Creating..." : "Joining...";
 
-	handleRoomJoin(button, input, callback) {
-		const roomId = input.value.trim();
-		if (!ValidationUtils.isValidRoomId(roomId)) {
-			input.style.borderColor = "#ef4444";
-			return;
-		}
-
-		button.disabled = true;
-		button.textContent = "Joining...";
-		callback({ action: "join", roomId });
+		callback({
+			action,
+			roomId,
+			modalContent: modalContent.closest(".modal-overlay"),
+		});
 	}
 
 	closeModal(modal, callback, result) {
+		if (!modal) return;
+
 		modal.style.opacity = "0";
-		modal.style.transition = "opacity 0.3s ease";
 		setTimeout(() => {
-			DOMUtils.removeElement(modal);
-			if (callback) callback(result);
+			if (modal.parentNode) {
+				modal.parentNode.removeChild(modal);
+			}
+
+			for (const [key, value] of this.modals.entries()) {
+				if (value === modal) {
+					this.modals.delete(key);
+					break;
+				}
+			}
+
+			if (callback && result !== undefined) callback(result);
 		}, 300);
 	}
 
@@ -780,11 +636,14 @@ export class UIManager {
 		message,
 		duration = CONSTANTS.FEEDBACK_DURATION
 	) {
-		const colors = {
-			error: { bg: "#ef4444", color: "white" },
-			success: { bg: "#10b981", color: "white" },
-			loading: { bg: "#6b7280", color: "white" },
-		};
+		const originalContent = element.innerHTML;
+
+		element.disabled = true;
+		element.className =
+			element.className.replace(
+				/\b(primary|secondary|success|warning|error)\b/g,
+				""
+			) + ` ${type}`;
 
 		const icons = {
 			error: "❌",
@@ -793,13 +652,15 @@ export class UIManager {
 		};
 
 		element.innerHTML = `${icons[type]} ${message}`;
-		element.style.background = colors[type].bg;
-		element.style.color = colors[type].color;
-		element.disabled = true;
 
 		if (type !== "loading") {
 			setTimeout(() => {
-				this.resetButton(element);
+				element.disabled = false;
+				element.className = element.className.replace(
+					/\b(success|warning|error)\b/g,
+					"primary"
+				);
+				element.innerHTML = originalContent;
 			}, duration);
 		}
 	}
@@ -818,131 +679,134 @@ export class UIManager {
 
 	resetButton(element) {
 		element.disabled = false;
-		element.style.background = "";
-		element.style.color = "";
+		element.className = element.className.replace(
+			/\b(success|warning|error|loading)\b/g,
+			"primary"
+		);
 
 		const buttonTexts = {
-			addToBucketBtn: "🪣 Add ▾",
-			viewBucketBtn: "👁️ View",
-			shareBtn: "🔗 Share",
-			startTimerBtn: "⏱️ Timer",
+			addToBucketBtn:
+				'<span class="icon">🪣</span><span class="text">Add to Bucket</span><span class="dropdown-arrow">▾</span>',
+			startTimerBtn:
+				'<span class="icon">⏱️</span><span class="text">Timer</span>',
+			shareBtn: '<span class="icon">🔗</span>',
 		};
 
-		element.innerHTML = buttonTexts[element.id] || element.innerHTML;
-	}
-
-	showConnectionStatus(isOnline) {
-		let statusDiv = document.getElementById("connectionStatus");
-
-		if (!statusDiv) {
-			statusDiv = DOMUtils.createElement(
-				"div",
-				`
-				position: fixed;
-				top: 10px;
-				left: 10px;
-				right: 10px;
-				padding: 8px;
-				border-radius: 6px;
-				font-size: 12px;
-				text-align: center;
-				z-index: 1000;
-				display: none;
-			`
-			);
-			statusDiv.id = "connectionStatus";
-			document.body.insertBefore(statusDiv, document.body.firstChild);
+		if (buttonTexts[element.id]) {
+			element.innerHTML = buttonTexts[element.id];
 		}
-
-		if (!isOnline) {
-			statusDiv.innerHTML =
-				"📶 Offline - Changes will sync when connected";
-			statusDiv.style.background = "#f59e0b";
-			statusDiv.style.color = "white";
-			statusDiv.style.display = "block";
-		} else {
-			statusDiv.style.display = "none";
-		}
-
-		return statusDiv;
 	}
 
 	updateTimerButton(button, isActive) {
 		if (isActive) {
-			button.innerHTML = "⏹️ Stop";
-			button.style.background = "#f59e0b";
-			button.style.color = "white";
+			button.innerHTML =
+				'<span class="icon">⏹️</span><span class="text">Stop</span>';
+			button.className = button.className.replace(
+				/\b(primary|secondary)\b/g,
+				"warning"
+			);
 		} else {
-			button.innerHTML = "⏱️ Timer";
-			button.style.background = "";
-			button.style.color = "";
+			button.innerHTML =
+				'<span class="icon">⏱️</span><span class="text">Timer</span>';
+			button.className = button.className.replace(
+				/\b(warning)\b/g,
+				"secondary"
+			);
 		}
 	}
 
 	updateBucketViewButton(button, isVisible) {
 		if (isVisible) {
-			button.innerHTML = "🙈 Hide";
-			button.style.background = "#6b7280";
-			button.style.color = "white";
+			button.innerHTML = '<span class="icon">🙈</span>';
+			button.className = button.className.replace(
+				/\bheader-btn\b/,
+				"header-btn active"
+			);
 		} else {
-			button.innerHTML = "👁️ View";
-			button.style.background = "";
-			button.style.color = "";
+			button.innerHTML = '<span class="icon">👁️</span>';
+			button.className = button.className.replace(/\bactive\b/, "");
 		}
 	}
 
 	toggleBucketList(isVisible) {
-		this.elements.bucketListContainer.style.display = isVisible
-			? "block"
+		this.elements.bucketContainer.style.display = isVisible
+			? "flex"
 			: "none";
+	}
+
+	showToast(message, type = "success", duration = 3000) {
+		const existingToast = document.querySelector(".toast");
+		if (existingToast) {
+			existingToast.remove();
+		}
+
+		const toast = document.createElement("div");
+		toast.className = `toast ${type}`;
+		toast.textContent = message;
+
+		document.body.appendChild(toast);
+
+		setTimeout(() => {
+			toast.style.opacity = "0";
+			setTimeout(() => toast.remove(), 300);
+		}, duration);
 	}
 
 	getButtons() {
 		return {
-			// addToBucket: document.getElementById("addToBucketBtn"),
 			viewBucket: document.getElementById("viewBucketBtn"),
 			share: document.getElementById("shareBtn"),
 			timer: document.getElementById("startTimerBtn"),
+			addToBucket: document.getElementById("addToBucketBtn"),
 		};
 	}
 
-	setInputError(input, message) {
-		input.style.borderColor = "#ef4444";
-		if (message) {
-			input.placeholder = message;
-		}
-	}
-
-	getRoomSelector() {
-		return this.elements.bucketList.querySelector("select");
-	}
-
 	onRoomChange(callback) {
-		const selector = this.getRoomSelector();
-		if (selector) {
-			selector.addEventListener("change", (e) => {
+		const select = document.getElementById("roomSelect");
+		if (select) {
+			select.addEventListener("change", (e) => {
 				callback(e.target.value || null);
 			});
 		}
 	}
 
 	onRemoveButtonClick(callback) {
-		document.querySelectorAll(".remove-button").forEach((btn) => {
-			btn.addEventListener("click", async (e) => {
-				const indexToRemove = parseInt(e.target.dataset.index);
-				const originalText = e.target.innerHTML;
+		this.elements.bucketList.addEventListener("click", async (e) => {
+			if (e.target.classList.contains("remove-btn")) {
+				const index = parseInt(e.target.dataset.index);
+				const originalContent = e.target.innerHTML;
 
 				e.target.innerHTML = "⏳";
 				e.target.disabled = true;
 
 				try {
-					await callback(indexToRemove);
+					await callback(index);
 				} catch (error) {
 					console.error("Error removing item:", error);
-					e.target.innerHTML = originalText;
+					e.target.innerHTML = originalContent;
 					e.target.disabled = false;
 				}
-			});
+			}
 		});
+	}
+
+	cleanup() {
+		this.dropdownCleanups.forEach((cleanup) => {
+			try {
+				cleanup();
+			} catch (error) {
+				console.error("Error cleaning up dropdown:", error);
+			}
+		});
+		this.dropdownCleanups.clear();
+
+		this.modals.forEach((modal) => {
+			if (modal.parentNode) {
+				modal.parentNode.removeChild(modal);
+			}
+		});
+		this.modals.clear();
+
+		this.hideDropdown();
 	}
 }
