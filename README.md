@@ -89,3 +89,7 @@ this project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## credits
 
 dev & co-dev.
+
+## inspiration
+
+hax & t swift

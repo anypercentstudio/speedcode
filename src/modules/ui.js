@@ -216,7 +216,6 @@ export class UIManager {
 
 	renderBucketList(
 		problems,
-		roomName = null,
 		currentRoomId = null,
 		joinedRooms = [],
 		currentUsername = ""
