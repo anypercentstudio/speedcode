@@ -81,7 +81,7 @@ export class UIManager {
 	}
 
 	updateJoinedRooms(rooms) {
-		this.currentJoinedRooms = rooms || [];
+		this.currentJoinedRooms = Array.isArray(rooms) ? rooms : [];
 	}
 
 	renderProblemInfo(problemData, joinedRooms, username, addToBucketCallback) {
@@ -137,7 +137,10 @@ export class UIManager {
 		);
 		dropdown.appendChild(personalOption);
 
-		if (this.currentJoinedRooms.length > 0) {
+		if (
+			Array.isArray(this.currentJoinedRooms) &&
+			this.currentJoinedRooms.length > 0
+		) {
 			const separator = document.createElement("div");
 			separator.className = "dropdown-separator";
 			dropdown.appendChild(separator);
@@ -220,19 +223,26 @@ export class UIManager {
 		joinedRooms = [],
 		currentUsername = ""
 	) {
-		this.updateJoinedRooms(joinedRooms);
+		const safeJoinedRooms = Array.isArray(joinedRooms) ? joinedRooms : [];
+		const safeProblems = Array.isArray(problems) ? problems : [];
 
-		if (joinedRooms.length > 0) {
-			this.setupRoomSelector(joinedRooms, currentRoomId, currentUsername);
+		this.updateJoinedRooms(safeJoinedRooms);
+
+		if (safeJoinedRooms.length > 0) {
+			this.setupRoomSelector(
+				safeJoinedRooms,
+				currentRoomId,
+				currentUsername
+			);
 			this.elements.roomSelector.style.display = "block";
 		} else {
 			this.elements.roomSelector.style.display = "none";
 		}
 
-		if (problems.length === 0) {
+		if (safeProblems.length === 0) {
 			this.showEmptyBucket(currentRoomId);
 		} else {
-			this.displayProblems(problems, currentRoomId);
+			this.displayProblems(safeProblems, currentRoomId);
 		}
 	}
 
@@ -245,7 +255,9 @@ export class UIManager {
 		personalOption.textContent = `📝 ${currentUsername}'s Personal Bucket`;
 		select.appendChild(personalOption);
 
-		joinedRooms.forEach((room) => {
+		const safeJoinedRooms = Array.isArray(joinedRooms) ? joinedRooms : [];
+
+		safeJoinedRooms.forEach((room) => {
 			if (room && room.id) {
 				const option = document.createElement("option");
 				option.value = room.id;
@@ -277,7 +289,9 @@ export class UIManager {
 	displayProblems(problems, currentRoomId) {
 		this.elements.bucketList.innerHTML = "";
 
-		problems.forEach((problem, index) => {
+		const safeProblems = Array.isArray(problems) ? problems : [];
+
+		safeProblems.forEach((problem, index) => {
 			const item = this.createProblemItem(problem, index, currentRoomId);
 			this.elements.bucketList.appendChild(item);
 		});

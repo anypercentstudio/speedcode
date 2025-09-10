@@ -135,7 +135,7 @@ class SpeedCodePopup {
 		this.ui.showLoadingUI(LoadingStates.DETECTING_PROBLEM);
 		this.state.setProblemDetection(true);
 
-		const joinedRooms = this.state.getState("room.joinedRooms");
+		const joinedRooms = this.state.getState("room.joinedRooms") || [];
 		const username = this.state.getState("user.username");
 
 		if (!username) {
@@ -328,7 +328,7 @@ class SpeedCodePopup {
 			}
 		} catch (error) {
 			ErrorUtils.logError("handleShare", error);
-			this.ui.resetButton(button); // Make sure button is reset on error
+			this.ui.resetButton(button);
 			this.ui.showToast("Failed to create/join room", "error");
 		}
 	}
@@ -414,23 +414,39 @@ class SpeedCodePopup {
 	async loadUserRooms() {
 		try {
 			const joinedRooms = await this.database.getUserRooms();
-			this.state.setJoinedRooms(joinedRooms);
-			this.ui.updateJoinedRooms(joinedRooms);
+			const safeJoinedRooms = Array.isArray(joinedRooms)
+				? joinedRooms
+				: [];
+			this.state.setJoinedRooms(safeJoinedRooms);
+			this.ui.updateJoinedRooms(safeJoinedRooms);
 		} catch (error) {
 			ErrorUtils.logError("loadUserRooms", error);
+			this.state.setJoinedRooms([]);
+			this.ui.updateJoinedRooms([]);
 		}
 	}
 
 	async refreshUserRooms() {
-		const joinedRooms = await this.database.getUserRooms();
-		this.state.setJoinedRooms(joinedRooms);
-		this.ui.updateJoinedRooms(joinedRooms);
+		try {
+			const joinedRooms = await this.database.getUserRooms();
+			const safeJoinedRooms = Array.isArray(joinedRooms)
+				? joinedRooms
+				: [];
+			this.state.setJoinedRooms(safeJoinedRooms);
+			this.ui.updateJoinedRooms(safeJoinedRooms);
+		} catch (error) {
+			ErrorUtils.logError("refreshUserRooms", error);
+		}
 	}
 
 	updateAddDropdown() {
 		if (!this.currentProblemData) return;
 
 		const username = this.state.getState("user.username");
+		const joinedRooms = this.state.getState("room.joinedRooms") || [];
+
+		this.ui.updateJoinedRooms(joinedRooms);
+
 		this.ui.refreshAddDropdown(
 			this.currentProblemData,
 			username,
@@ -442,7 +458,7 @@ class SpeedCodePopup {
 
 	async renderBucketWithSelector() {
 		const currentRoomId = this.state.getState("room.currentRoomId");
-		const joinedRooms = this.state.getState("room.joinedRooms");
+		const joinedRooms = this.state.getState("room.joinedRooms") || [];
 		const username = this.state.getState("user.username");
 
 		try {
@@ -452,19 +468,22 @@ class SpeedCodePopup {
 				this.database.listenToBucket(
 					currentRoomId,
 					(bucketProblems, data) => {
-						this.state.setBucketProblems(bucketProblems);
-						this.ui.displayProblems(bucketProblems, currentRoomId);
+						const safeProblems = Array.isArray(bucketProblems)
+							? bucketProblems
+							: [];
+						this.state.setBucketProblems(safeProblems);
+						this.ui.displayProblems(safeProblems, currentRoomId);
 						this.setupRemoveButtons();
 					}
 				);
 			} else {
 				problems = await this.database.getBucketProblems();
+				problems = Array.isArray(problems) ? problems : [];
 				this.state.setBucketProblems(problems);
 			}
 
 			this.ui.renderBucketList(
 				problems,
-				null,
 				currentRoomId,
 				joinedRooms,
 				username
@@ -481,7 +500,7 @@ class SpeedCodePopup {
 			}
 		} catch (error) {
 			ErrorUtils.logError("renderBucketWithSelector", error);
-			throw error;
+			this.ui.renderBucketList([], currentRoomId, joinedRooms, username);
 		}
 	}
 
@@ -512,7 +531,7 @@ class SpeedCodePopup {
 
 			if (!currentRoomId) {
 				this.state.removeProblemFromBucket(index);
-				const problems = this.state.getState("bucket.problems");
+				const problems = this.state.getState("bucket.problems") || [];
 				this.ui.displayProblems(problems, currentRoomId);
 				this.setupRemoveButtons();
 			}
