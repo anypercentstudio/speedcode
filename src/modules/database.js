@@ -163,7 +163,10 @@ export class DatabaseManager {
 				: [];
 
 			const alreadyExists = currentProblems.some(
-				(p) => p.url.toLowerCase() === problemData.url.toLowerCase()
+				(p) => (p.url.match(/\/problems\/[^/]+/i)?.[0].replace(/\/$/, "").toLowerCase() ||
+					p.url.toLowerCase()) ===
+					(problemData.url.match(/\/problems\/[^/]+/i)?.[0].replace(/\/$/, "").toLowerCase() ||
+					problemData.url.toLowerCase())
 			);
 
 			if (alreadyExists) {

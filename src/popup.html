@@ -5,61 +5,80 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>SpeedCode</title>
 		<link rel="stylesheet" href="./popup.css" />
+		<style>
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				width: 400px;
+				min-height: 580px;
+				max-height: 600px;
+				overflow: hidden;
+				box-sizing: border-box;
+				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+					"Inter", sans-serif;
+			}
+
+			body {
+				display: flex;
+				flex-direction: column;
+				background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+			}
+		</style>
 	</head>
 	<body>
-		<div id="problemInfo" class="problem-info"></div>
-		<div id="bucketListContainer" style="display: none">
+		<div id="header" class="header">
+			<div class="logo">
+				<span class="logo-icon">⚡</span>
+				<span class="logo-text">SpeedCode</span>
+			</div>
+			<div class="header-actions">
+				<button
+					id="viewBucketBtn"
+					class="header-btn"
+					title="Toggle bucket view"
+				>
+					<span class="icon">👁️</span>
+				</button>
+				<button
+					id="shareBtn"
+					class="header-btn"
+					title="Share & collaborate"
+				>
+					<span class="icon">🔗</span>
+				</button>
+			</div>
+		</div>
+
+		<div id="mainContent" class="main-content">
+			<div id="problemInfo" class="problem-section"></div>
+
+			<div id="quickActions" class="quick-actions" style="display: none">
+				<button id="addToBucketBtn" class="action-btn primary">
+					<span class="icon">🪣</span>
+					<span class="text">Add to Bucket</span>
+					<span class="dropdown-arrow">▾</span>
+				</button>
+				<button id="startTimerBtn" class="action-btn secondary">
+					<span class="icon">⏱️</span>
+					<span class="text">Timer</span>
+				</button>
+			</div>
+		</div>
+
+		<div
+			id="bucketContainer"
+			class="bucket-container"
+			style="display: none"
+		>
+			<div id="roomSelector" class="room-selector" style="display: none">
+				<select id="roomSelect" class="room-select"></select>
+			</div>
+
 			<div id="bucketList" class="bucket-list"></div>
 		</div>
 
-		<template id="usernameModalTemplate">
-			<div class="username-modal">
-				<div class="username-modal-content">
-					<h3>pick a nickname</h3>
-					<input
-						type="text"
-						id="usernameInput"
-						placeholder="Enter username..."
-						maxlength="20"
-					/>
-					<button id="saveUsernameBtn">save nickname</button>
-					<div
-						style="color: #6b7280; font-size: 12px; margin-top: 8px"
-					>
-						u can change this later in settings
-					</div>
-				</div>
-			</div>
-		</template>
-
-		<template id="shareModalTemplate">
-			<div class="share-modal">
-				<div class="share-modal-content">
-					<h3>shared problem bucket</h3>
-
-					<button id="createRoomBtn" class="create-btn">
-						🏠 create new room
-					</button>
-
-					<div class="divider">
-						<span>or</span>
-					</div>
-
-					<input
-						type="text"
-						id="roomIdInput"
-						placeholder="Enter Room ID..."
-						maxlength="6"
-					/>
-
-					<button id="joinRoomBtn" class="join-btn">
-						🚪 join room
-					</button>
-
-					<button id="cancelBtn" class="cancel-btn">cancel</button>
-				</div>
-			</div>
-		</template>
+		<div id="addDropdown" class="add-dropdown" style="display: none"></div>
 
 		<script type="module" src="./popup.js"></script>
 	</body>
