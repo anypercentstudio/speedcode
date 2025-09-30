@@ -54,17 +54,6 @@ npm run build:all        # builds for both chrome and firefox
 npm run package:all      # creates zip files for distribution
 ```
 
-## what we do
-
--   [x] problem detection
--   [x] manual timer
--   [x] individual and shared problem bucket
--   [x] cross-browser support (chrome + firefox)
-
-## what we gon do
-
--   [ ] ranking system
-
 ## architecture
 
 ```
